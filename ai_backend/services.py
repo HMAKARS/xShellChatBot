@@ -167,7 +167,7 @@ class AIService:
             }
     
     def extract_command(self, message: str) -> Optional[str]:
-        """메시지에서 실행할 명령어 추출"""
+        """메시지에서 실행할 명령어 추출 - Windows/Linux 명령어 지원"""
         
         # 백틱으로 감싸진 명령어 찾기
         backtick_match = re.search(r'`([^`]+)`', message)
@@ -189,15 +189,43 @@ class AIService:
         
         # AI를 사용한 명령어 추출
         try:
-            prompt = f"""
-            다음 텍스트에서 실행할 리눅스/유닉스 명령어를 추출해주세요.
-            명령어만 반환하고 다른 설명은 하지 마세요.
-            명령어가 없으면 'NONE'을 반환하세요.
+            import platform
+            is_windows = platform.system().lower() == 'windows'
             
-            텍스트: "{message}"
-            """
+            if is_windows:
+                system_prompt = """당신은 Windows 명령어 전문가입니다.
+                사용자의 자연어 요청에서 실행할 Windows 명령어를 추출하세요."""
+                
+                prompt = f"""
+                다음 텍스트에서 실행할 Windows 명령어(Command Prompt 또는 PowerShell)를 추출해주세요.
+                명령어만 반환하고 다른 설명은 하지 마세요.
+                명령어가 없으면 'NONE'을 반환하세요.
+                
+                텍스트: "{message}"
+                
+                예시:
+                - "파일 목록 보여줘" → dir
+                - "프로세스 확인해줘" → Get-Process
+                - "시스템 정보 알려줘" → systeminfo
+                """
+            else:
+                system_prompt = """당신은 리눅스/유닉스 명령어 전문가입니다.
+                사용자의 자연어 요청에서 실행할 명령어를 추출하세요."""
+                
+                prompt = f"""
+                다음 텍스트에서 실행할 리눅스/유닉스 명령어를 추출해주세요.
+                명령어만 반환하고 다른 설명은 하지 마세요.
+                명령어가 없으면 'NONE'을 반환하세요.
+                
+                텍스트: "{message}"
+                
+                예시:
+                - "파일 목록 보여줘" → ls -la
+                - "프로세스 확인해줘" → ps aux
+                - "디스크 사용량 확인해줘" → df -h
+                """
             
-            response = self.code_client.generate(prompt)
+            response = self.code_client.generate(prompt, system_prompt)
             extracted = response.get('response', '').strip()
             
             if extracted and extracted != 'NONE' and not extracted.startswith('명령어'):

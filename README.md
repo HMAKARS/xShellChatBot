@@ -29,22 +29,60 @@ Django + Channels + Ollama를 기반으로 한 XShell 통합 AI 챗봇입니다.
 
 ## 🚀 설치 및 실행
 
-### 1. 프로젝트 클론 및 의존성 설치
+### Windows에서 빠른 시작
 
-```bash
-# 프로젝트 클론
-git clone <repository-url>
-cd xShellChatBot
+#### 1. 배치 파일로 시작 (가장 간단)
+```batch
+# 더블클릭으로 실행
+start.bat
+```
 
+#### 2. PowerShell로 시작
+```powershell
+# PowerShell에서 실행
+.\start.ps1
+
+# 또는 추가 옵션과 함께
+.\start.ps1 -Action start -ShellType powershell
+```
+
+#### 3. 수동 설정
+```batch
 # 가상환경 생성 및 활성화
 python -m venv .venv
-# Windows
 .venv\Scripts\activate
-# macOS/Linux
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# 데이터베이스 설정
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+
+# 서버 실행
+python start_server.py
+```
+
+### Linux/macOS에서 시작
+
+```bash
+# 초기 설정 실행
+python setup.py
+
+# 가상환경 활성화
 source .venv/bin/activate
 
 # 의존성 설치
 pip install -r requirements.txt
+
+# 데이터베이스 설정
+python manage.py makemigrations
+python manage.py migrate
+python manage.py createsuperuser
+
+# 서버 실행
+python start_server.py
 ```
 
 ### 2. Ollama 설치 및 모델 다운로드

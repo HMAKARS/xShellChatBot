@@ -175,6 +175,7 @@ def execute_command(request):
         data = json.loads(request.body)
         command = data.get('command')
         session_name = data.get('session_name', 'default')
+        shell_type = data.get('shell_type', None)  # PowerShell, cmd 등
         chat_session_id = data.get('chat_session_id')
         
         if not command:
@@ -185,7 +186,7 @@ def execute_command(request):
         
         # XShell 서비스 호출
         xshell_service = XShellService()
-        result = xshell_service.execute_command(command, session_name)
+        result = xshell_service.execute_command(command, session_name, shell_type)
         
         # 결과를 채팅 세션에 저장 (선택적)
         if chat_session_id:
@@ -196,7 +197,8 @@ def execute_command(request):
                 ChatMessage.objects.create(
                     session=session,
                     message_type='command',
-                    content=command
+                    content=command,
+                    metadata={'shell_type': shell_type or 'auto-detect'}
                 )
                 
                 # 결과 메시지 저장
@@ -206,7 +208,8 @@ def execute_command(request):
                     content=result['output'],
                     metadata={
                         'exit_code': result.get('exit_code'),
-                        'execution_time': result.get('execution_time')
+                        'execution_time': result.get('execution_time'),
+                        'shell_type': result.get('shell_type', 'unknown')
                     }
                 )
             except ChatSession.DoesNotExist:
