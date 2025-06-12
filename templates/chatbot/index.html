@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XShell AI 챗봇</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{% load static %}{% static 'css/chatbot.css' %}" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <!-- 사이드바 -->
+            <div class="col-md-3 col-lg-2 sidebar p-0">
+                <div class="sidebar-header p-3">
+                    <h5 class="text-white"><i class="fas fa-terminal me-2"></i>XShell AI</h5>
+                </div>
+                
+                <!-- 새 채팅 버튼 -->
+                <div class="p-3">
+                    <button class="btn btn-primary w-100" id="newChatBtn">
+                        <i class="fas fa-plus me-2"></i>새 채팅
+                    </button>
+                </div>
+                
+                <!-- 세션 목록 -->
+                <div class="session-list">
+                    <div class="p-3 border-bottom">
+                        <h6 class="text-light mb-2">채팅 세션</h6>
+                        <div id="chatSessionList">
+                            {% for session in chat_sessions %}
+                            <div class="session-item" data-session-id="{{ session.session_id }}">
+                                <div class="session-name">{{ session.title }}</div>
+                                <div class="session-time">{{ session.updated_at|date:"M d, H:i" }}</div>
+                            </div>
+                            {% empty %}
+                            <div class="text-muted small">채팅 세션이 없습니다</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="p-3">
+                        <h6 class="text-light mb-2">XShell 세션</h6>
+                        <div id="xshellSessionList">
+                            {% for session in xshell_sessions %}
+                            <div class="xshell-session-item" data-session-name="{{ session.name }}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>{{ session.name }}</span>
+                                    <span class="badge {% if session.is_connected %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if session.is_connected %}연결됨{% else %}연결 안됨{% endif %}
+                                    </span>
+                                </div>
+                                <div class="small text-muted">{{ session.username }}@{{ session.host }}</div>
+                            </div>
+                            {% empty %}
+                            <div class="text-muted small">XShell 세션이 없습니다</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 메인 채팅 영역 -->
+            <div class="col-md-9 col-lg-10 main-content p-0">
+                <div class="chat-container h-100 d-flex flex-column">
+                    <!-- 채팅 헤더 -->
+                    <div class="chat-header p-3 border-bottom bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0" id="currentSessionTitle">XShell AI 챗봇에 오신 것을 환영합니다!</h6>
+                                <small class="text-muted" id="currentSessionInfo">Ollama 기반 오픈소스 AI로 구동됩니다</small>
+                            </div>
+                            <div class="chat-controls">
+                                <button class="btn btn-sm btn-outline-secondary me-2" id="clearChatBtn">
+                                    <i class="fas fa-trash me-1"></i>대화 지우기
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" id="settingsBtn">
+                                    <i class="fas fa-cog me-1"></i>설정
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 채팅 메시지 영역 -->
+                    <div class="chat-messages flex-grow-1 p-3" id="chatMessages">
+                        <div class="welcome-message">
+                            <div class="text-center p-4">
+                                <i class="fas fa-robot fa-3x text-primary mb-3"></i>
+                                <h4>XShell AI 챗봇</h4>
+                                <p class="text-muted">터미널 명령어 실행, 코드 분석, 시스템 관리 등을 도와드립니다.</p>
+                                <div class="row mt-4">
+                                    <div class="col-md-4">
+                                        <div class="feature-card p-3 border rounded">
+                                            <i class="fas fa-terminal text-primary mb-2"></i>
+                                            <h6>명령어 실행</h6>
+                                            <small class="text-muted">SSH를 통한 원격 명령어 실행</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="feature-card p-3 border rounded">
+                                            <i class="fas fa-code text-success mb-2"></i>
+                                            <h6>코드 분석</h6>
+                                            <small class="text-muted">오류 분석 및 해결책 제시</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="feature-card p-3 border rounded">
+                                            <i class="fas fa-cogs text-warning mb-2"></i>
+                                            <h6>시스템 관리</h6>
+                                            <small class="text-muted">서버 모니터링 및 관리 조언</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 타이핑 인디케이터 -->
+                    <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                        <div class="p-3">
+                            <div class="typing-dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 메시지 입력 영역 -->
+                    <div class="chat-input-container p-3 border-top bg-light">
+                        <div class="input-group">
+                            <textarea class="form-control" id="messageInput" placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)" rows="1"></textarea>
+                            <button class="btn btn-primary" type="button" id="sendBtn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" id="attachFileBtn"><i class="fas fa-file me-2"></i>파일 첨부</a></li>
+                                <li><a class="dropdown-item" href="#" id="commandModeBtn"><i class="fas fa-terminal me-2"></i>명령어 모드</a></li>
+                                <li><a class="dropdown-item" href="#" id="voiceInputBtn"><i class="fas fa-microphone me-2"></i>음성 입력</a></li>
+                            </ul>
+                        </div>
+                        <div class="input-info mt-2">
+                            <small class="text-muted">AI가 귀하의 메시지를 분석하여 적절한 작업을 수행합니다</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 모달들 -->
+    <!-- 새 세션 모달 -->
+    <div class="modal fade" id="newSessionModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">새 채팅 세션</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newSessionForm">
+                        <div class="mb-3">
+                            <label for="sessionTitle" class="form-label">세션 제목</label>
+                            <input type="text" class="form-control" id="sessionTitle" placeholder="새로운 채팅">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                    <button type="button" class="btn btn-primary" id="createSessionBtn">생성</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 설정 모달 -->
+    <div class="modal fade" id="settingsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">설정</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 설정 탭 -->
+                    <ul class="nav nav-tabs" id="settingsTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#aiSettings">AI 설정</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#xshellSettings">XShell 설정</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#generalSettings">일반 설정</a>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3">
+                        <!-- AI 설정 -->
+                        <div class="tab-pane fade show active" id="aiSettings">
+                            <div class="mb-3">
+                                <label for="aiModel" class="form-label">AI 모델</label>
+                                <select class="form-select" id="aiModel">
+                                    <option value="llama3.1:8b">Llama 3.1 8B</option>
+                                    <option value="codellama:7b">CodeLlama 7B</option>
+                                    <option value="mistral:7b">Mistral 7B</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="temperature" class="form-label">창의성 (Temperature)</label>
+                                <input type="range" class="form-range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                                <span id="temperatureValue">0.7</span>
+                            </div>
+                        </div>
+                        
+                        <!-- XShell 설정 -->
+                        <div class="tab-pane fade" id="xshellSettings">
+                            <button class="btn btn-primary mb-3" id="addXShellSessionBtn">새 XShell 세션 추가</button>
+                            <div id="xshellSessionsList">
+                                <!-- XShell 세션 목록이 여기에 로드됩니다 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 일반 설정 -->
+                        <div class="tab-pane fade" id="generalSettings">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="autoSave">
+                                <label class="form-check-label" for="autoSave">대화 자동 저장</label>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="soundNotifications">
+                                <label class="form-check-label" for="soundNotifications">알림음</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                    <button type="button" class="btn btn-primary" id="saveSettingsBtn">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% load static %}{% static 'js/chatbot.js' %}"></script>
+</body>
+</html>

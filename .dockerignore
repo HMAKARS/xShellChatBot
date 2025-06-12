@@ -1,0 +1,67 @@
+# Git 관련
+.git
+.gitignore
+
+# Python 관련
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache
+.coverage
+htmlcov
+
+# 가상환경
+.venv
+venv/
+env/
+
+# IDE 관련
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 로그 파일
+*.log
+logs/*.log
+
+# 데이터베이스
+*.db
+*.sqlite3
+db.sqlite3
+
+# 미디어 파일 (개발용)
+media/
+
+# 설정 파일
+.env
+.env.local
+.env.production
+
+# Docker 관련
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# 문서
+README.md
+docs/
+
+# 테스트
+test_*
+*_test.py
+
+# 캐시
+.cache
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# 임시 파일
+*.tmp
+*.temp

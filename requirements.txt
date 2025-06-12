@@ -1,0 +1,11 @@
+Django==4.2.7
+channels==4.0.0
+channels-redis==4.1.0
+django-cors-headers==4.3.1
+requests==2.31.0
+websockets==11.0.3
+python-dotenv==1.0.0
+ollama==0.1.7
+asyncio==3.4.3
+paramiko==3.3.1
+pexpect==4.8.0
