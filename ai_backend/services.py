@@ -84,8 +84,17 @@ class AIService:
     """AI 서비스 메인 클래스"""
     
     def __init__(self):
-        self.ollama_client = OllamaClient()
-        self.code_client = OllamaClient(model=settings.CODE_AI_MODEL)
+        # Ollama 연결 상태 확인
+        try:
+            response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2)
+            if response.status_code == 200:
+                self.ollama_available = True
+                self.ollama_client = OllamaClient()
+                self.code_client = OllamaClient(model=settings.CODE_AI_MODEL)
+            else:
+                self.ollama_available = False
+        except:
+            self.ollama_available = False
         
     def process_message(self, message: str, session_id: str, message_type: str = 'user', context: Dict = None) -> Dict[str, Any]:
         """메시지 처리 및 적절한 AI 응답 생성"""
@@ -492,6 +501,25 @@ class AIService:
         
         user_context = user_context or {}
         shell_type = user_context.get('shell_type')
+        
+        # Ollama가 사용 불가능한 경우 기본 응답
+        if not self.ollama_available:
+            return {
+                'content': f"죄송합니다. 현재 AI 서비스(Ollama)에 연결할 수 없습니다.\n\n"
+                          f"**AI 기능을 사용하려면:**\n"
+                          f"1. https://ollama.ai/download 에서 Ollama를 설치하세요\n"
+                          f"2. 설치 후 `ollama pull llama3.2:3b` 명령어로 모델을 다운로드하세요\n"
+                          f"3. 서비스가 자동으로 시작됩니다\n\n"
+                          f"**현재 사용 가능한 기능:**\n"
+                          f"- XShell 세션 연결 및 명령어 실행\n"
+                          f"- 터미널 작업 지원\n\n"
+                          f"무엇을 도와드릴까요?",
+                'metadata': {
+                    'type': 'ai_unavailable',
+                    'shell_type': shell_type,
+                    'capabilities': ['command_execution', 'xshell_integration']
+                }
+            }
         
         # Shell 타입별 시스템 프롬프트
         if shell_type in ['powershell', 'cmd']:

@@ -2,6 +2,7 @@
 :: XShell AI 챗봇 최소 설치 스크립트 (Windows)
 :: 컴파일 오류 없이 핵심 기능만 설치
 
+setlocal enabledelayedexpansion
 chcp 65001 >nul
 cls
 
@@ -158,6 +159,103 @@ if not exist logs (
     mkdir logs
     echo ✅ 로그 디렉토리 생성 완료
 )
+
+:: Ollama 확인 및 모델 다운로드
+echo.
+echo 🤖 Ollama AI 설정 중...
+echo    AI 기능을 위해 Ollama와 모델을 설정합니다.
+
+:: Ollama 설치 확인
+ollama --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ⚠️  Ollama가 설치되지 않았습니다.
+    echo.
+    echo 📥 Ollama 설치 방법:
+    echo    1. https://ollama.ai/download 방문
+    echo    2. Windows용 Ollama 다운로드 및 설치
+    echo    3. 설치 완료 후 이 스크립트를 다시 실행
+    echo.
+    echo 💡 Ollama 없이도 XShell 기능은 사용 가능합니다.
+    set /p CONTINUE_WITHOUT_OLLAMA="Ollama 없이 계속하시겠습니까? (y/N): "
+    if /i "!CONTINUE_WITHOUT_OLLAMA!"=="y" (
+        echo ✅ Ollama 없이 설치를 계속합니다.
+        goto :skip_ollama
+    ) else (
+        echo.
+        echo 🔗 Ollama 다운로드 페이지를 열어드립니다...
+        start https://ollama.ai/download
+        echo.
+        echo 설치 완료 후 이 스크립트를 다시 실행해주세요.
+        pause
+        exit /b 0
+    )
+) else (
+    echo ✅ Ollama 확인됨
+    
+    :: Ollama 서비스 확인
+    echo    Ollama 서비스 상태 확인 중...
+    curl -s http://localhost:11434 >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo ⚠️  Ollama 서비스가 실행되지 않습니다.
+        echo    서비스를 시작합니다...
+        
+        :: Ollama 서비스 시작 시도
+        start /min ollama serve >nul 2>&1
+        
+        :: 서비스 시작 대기 (최대 10초)
+        echo    서비스 시작 대기 중...
+        for /L %%i in (1,1,10) do (
+            timeout /t 1 /nobreak >nul 2>&1
+            curl -s http://localhost:11434 >nul 2>&1
+            if !errorlevel! equ 0 (
+                echo ✅ Ollama 서비스 시작됨
+                goto :ollama_ready
+            )
+        )
+        
+        echo ⚠️  Ollama 서비스 자동 시작 실패
+        echo    수동으로 Ollama를 시작해주세요: ollama serve
+        goto :skip_ollama
+    ) else (
+        echo ✅ Ollama 서비스 실행 중
+    )
+    
+    :ollama_ready
+    :: 모델 확인 및 다운로드
+    echo    설치된 모델 확인 중...
+    ollama list | findstr "llama3.1:8b" >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo 📥 llama3.1:8b 모델 다운로드 중... (약 4.7GB, 시간이 걸릴 수 있습니다)
+        echo    네트워크 상태에 따라 5-20분 소요될 수 있습니다.
+        echo.
+        
+        ollama pull llama3.1:8b
+        if %errorlevel% equ 0 (
+            echo ✅ llama3.1:8b 모델 다운로드 완료!
+        ) else (
+            echo ❌ 모델 다운로드 실패
+            echo    인터넷 연결을 확인하고 나중에 다시 시도해주세요:
+            echo    ollama pull llama3.1:8b
+        )
+    ) else (
+        echo ✅ llama3.1:8b 모델 이미 설치됨
+    )
+    
+    :: 추가 경량 모델 제안
+    echo.
+    set /p INSTALL_LIGHT_MODEL="경량 모델(llama3.2:3b, 약 2GB)도 설치하시겠습니까? (y/N): "
+    if /i "!INSTALL_LIGHT_MODEL!"=="y" (
+        echo 📥 llama3.2:3b 모델 다운로드 중...
+        ollama pull llama3.2:3b
+        if %errorlevel% equ 0 (
+            echo ✅ llama3.2:3b 모델 다운로드 완료!
+        ) else (
+            echo ❌ 경량 모델 다운로드 실패
+        )
+    )
+)
+
+:skip_ollama
 
 :: 완료 메시지
 echo.
