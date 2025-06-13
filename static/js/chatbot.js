@@ -1,5 +1,5 @@
 /**
- * XShell AI 챗봇 JavaScript
+ * XShell AI 챗봇 JavaScript - Windows Shell 지원 포함
  */
 
 class XShellChatbot {
@@ -9,6 +9,8 @@ class XShellChatbot {
         this.isConnected = false;
         this.messageQueue = [];
         this.settings = this.loadSettings();
+        this.isWindows = this.detectOS();
+        this.currentShellType = 'auto';
         
         this.init();
     }
@@ -18,6 +20,48 @@ class XShellChatbot {
         this.setupWebSocket();
         this.loadChatSessions();
         this.createNewSession();
+        this.setupOSSpecificFeatures();
+    }
+    
+    detectOS() {
+        const userAgent = navigator.userAgent;
+        return userAgent.indexOf('Windows') !== -1;
+    }
+    
+    setupOSSpecificFeatures() {
+        // OS 정보 표시
+        const osInfo = document.getElementById('osInfo');
+        if (osInfo) {
+            if (this.isWindows) {
+                osInfo.textContent = 'Windows 감지됨';
+                // Windows에서는 Shell 선택기 표시
+                this.showShellSelector();
+            } else {
+                osInfo.textContent = 'Unix/Linux 감지됨';
+            }
+        }
+        
+        // Shell 정보 업데이트
+        this.updateShellInfo();
+    }
+    
+    showShellSelector() {
+        const shellSelector = document.getElementById('shellSelector');
+        if (shellSelector) {
+            shellSelector.style.display = 'block';
+        }
+    }
+    
+    updateShellInfo() {
+        const shellInfo = document.getElementById('shellInfo');
+        if (shellInfo) {
+            const shellNames = {
+                'auto': '자동 감지',
+                'powershell': 'PowerShell',
+                'cmd': 'Command Prompt'
+            };
+            shellInfo.textContent = `Shell: ${shellNames[this.currentShellType] || '자동'}`;
+        }
     }
     
     setupEventListeners() {
@@ -37,6 +81,32 @@ class XShellChatbot {
             this.style.height = Math.min(this.scrollHeight, 120) + 'px';
         });
         
+        // Shell 타입 선택
+        const shellTypeSelect = document.getElementById('shellTypeSelect');
+        if (shellTypeSelect) {
+            shellTypeSelect.addEventListener('change', (e) => {
+                this.currentShellType = e.target.value;
+                this.updateShellInfo();
+                this.saveSettings();
+            });
+        }
+        
+        // Shell 선택기 토글
+        const toggleShellSelector = document.getElementById('toggleShellSelector');
+        if (toggleShellSelector) {
+            toggleShellSelector.addEventListener('click', () => {
+                this.toggleShellSelector();
+            });
+        }
+        
+        // Shell 설정 메뉴
+        const shellSelectorBtn = document.getElementById('shellSelectorBtn');
+        if (shellSelectorBtn) {
+            shellSelectorBtn.addEventListener('click', () => {
+                this.showShellSelector();
+            });
+        }
+        
         // 새 채팅 버튼
         document.getElementById('newChatBtn').addEventListener('click', () => {
             this.showNewSessionModal();
@@ -51,6 +121,14 @@ class XShellChatbot {
         document.getElementById('clearChatBtn').addEventListener('click', () => {
             this.clearCurrentChat();
         });
+        
+        // 명령어 모드
+        const commandModeBtn = document.getElementById('commandModeBtn');
+        if (commandModeBtn) {
+            commandModeBtn.addEventListener('click', () => {
+                this.toggleCommandMode();
+            });
+        }
         
         // 모달 이벤트
         document.getElementById('createSessionBtn').addEventListener('click', () => {
@@ -68,6 +146,35 @@ class XShellChatbot {
                 this.switchToSession(sessionId);
             }
         });
+    }
+    
+    toggleShellSelector() {
+        const shellSelector = document.getElementById('shellSelector');
+        if (shellSelector) {
+            const isVisible = shellSelector.style.display !== 'none';
+            shellSelector.style.display = isVisible ? 'none' : 'block';
+        }
+    }
+    
+    toggleCommandMode() {
+        const messageInput = document.getElementById('messageInput');
+        const isCommandMode = messageInput.classList.contains('command-mode');
+        
+        if (isCommandMode) {
+            // 일반 모드로 전환
+            messageInput.classList.remove('command-mode');
+            messageInput.placeholder = '메시지를 입력하세요... (Shift+Enter로 줄바꿈)';
+            this.showToast('일반 모드로 전환됨', 'info');
+        } else {
+            // 명령어 모드로 전환
+            messageInput.classList.add('command-mode');
+            if (this.isWindows) {
+                messageInput.placeholder = 'Windows 명령어를 입력하세요... (예: dir, Get-Process)';
+            } else {
+                messageInput.placeholder = 'Unix 명령어를 입력하세요... (예: ls -la, ps aux)';
+            }
+            this.showToast('명령어 모드로 전환됨', 'info');
+        }
     }
     
     setupWebSocket() {
@@ -140,28 +247,46 @@ class XShellChatbot {
         if (!this.isConnected) {
             this.messageQueue.push({
                 type: 'message',
-                message: message
+                message: message,
+                shell_type: this.currentShellType !== 'auto' ? this.currentShellType : null
             });
             this.showError('연결 중입니다. 잠시 후 다시 시도해주세요.');
             return;
         }
         
+        // 명령어 모드인지 확인
+        const isCommandMode = messageInput.classList.contains('command-mode');
+        
         // UI에 즉시 표시
         this.displayMessage({
             type: 'user',
             content: message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            metadata: {
+                shell_type: this.currentShellType,
+                command_mode: isCommandMode
+            }
         });
         
         // WebSocket으로 전송
-        this.chatSocket.send(JSON.stringify({
+        const messageData = {
             type: 'message',
-            message: message
-        }));
+            message: message,
+            shell_type: this.currentShellType !== 'auto' ? this.currentShellType : null,
+            command_mode: isCommandMode
+        };
+        
+        this.chatSocket.send(JSON.stringify(messageData));
         
         // 입력 필드 초기화
         messageInput.value = '';
         messageInput.style.height = 'auto';
+        
+        // 명령어 모드에서는 자동으로 일반 모드로 전환
+        if (isCommandMode) {
+            messageInput.classList.remove('command-mode');
+            messageInput.placeholder = '메시지를 입력하세요... (Shift+Enter로 줄바꿈)';
+        }
         
         // 타이핑 인디케이터 표시
         this.showTypingIndicator('ai');
@@ -434,11 +559,16 @@ class XShellChatbot {
             aiModel: 'llama3.1:8b',
             temperature: 0.7,
             autoSave: true,
-            soundNotifications: false
+            soundNotifications: false,
+            shellType: 'auto',
+            commandMode: false
         };
         
         const saved = localStorage.getItem('xshell_chatbot_settings');
         const settings = saved ? JSON.parse(saved) : defaultSettings;
+        
+        // 현재 Shell 타입 설정
+        this.currentShellType = settings.shellType || 'auto';
         
         // UI 업데이트
         if (document.getElementById('aiModel')) {
@@ -449,15 +579,22 @@ class XShellChatbot {
             document.getElementById('soundNotifications').checked = settings.soundNotifications;
         }
         
+        // Shell 타입 선택기 업데이트
+        if (document.getElementById('shellTypeSelect')) {
+            document.getElementById('shellTypeSelect').value = settings.shellType;
+        }
+        
         return settings;
     }
     
     saveSettings() {
         const settings = {
-            aiModel: document.getElementById('aiModel').value,
-            temperature: parseFloat(document.getElementById('temperature').value),
-            autoSave: document.getElementById('autoSave').checked,
-            soundNotifications: document.getElementById('soundNotifications').checked
+            aiModel: document.getElementById('aiModel')?.value || 'llama3.1:8b',
+            temperature: parseFloat(document.getElementById('temperature')?.value || 0.7),
+            autoSave: document.getElementById('autoSave')?.checked || true,
+            soundNotifications: document.getElementById('soundNotifications')?.checked || false,
+            shellType: this.currentShellType,
+            commandMode: false
         };
         
         localStorage.setItem('xshell_chatbot_settings', JSON.stringify(settings));
@@ -540,8 +677,13 @@ class XShellChatbot {
 }
 
 // 명령어 실행 관련 함수들
-function executeCommand(command, sessionName = 'default') {
+function executeCommand(command, sessionName = 'default', shellType = null) {
     if (!command) return;
+    
+    // 현재 선택된 Shell 타입 사용 (전달된 값이 없으면)
+    if (!shellType && chatbot) {
+        shellType = chatbot.currentShellType !== 'auto' ? chatbot.currentShellType : null;
+    }
     
     fetch('/api/command/execute/', {
         method: 'POST',
@@ -552,19 +694,30 @@ function executeCommand(command, sessionName = 'default') {
         body: JSON.stringify({
             command: command,
             session_name: sessionName,
+            shell_type: shellType,
             chat_session_id: chatbot.currentSessionId
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            const result = data.result;
+            let resultContent = result.output;
+            
+            // Shell 타입 정보 추가
+            if (result.shell_type) {
+                resultContent = `[${result.shell_type}]\n${resultContent}`;
+            }
+            
             chatbot.displayMessage({
                 type: 'result',
-                content: data.result.output,
+                content: resultContent,
                 timestamp: new Date().toISOString(),
                 metadata: {
-                    exit_code: data.result.exit_code,
-                    execution_time: data.result.execution_time
+                    exit_code: result.exit_code,
+                    execution_time: result.execution_time,
+                    shell_type: result.shell_type,
+                    command: command
                 }
             });
         } else {

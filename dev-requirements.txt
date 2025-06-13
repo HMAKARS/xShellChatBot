@@ -1,0 +1,41 @@
+# 개발 전용 의존성
+# 기본 요구사항 포함
+-r requirements.txt
+
+# 개발 도구
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+
+# 코드 품질
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.6.0
+
+# 문서화
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+mkdocs-mermaid2-plugin==1.1.1
+
+# 디버깅
+django-debug-toolbar==4.2.0
+django-extensions==3.2.3
+ipython==8.17.2
+ipdb==0.13.13
+
+# 프로파일링
+django-silk==5.0.4
+memory-profiler==0.61.0
+line-profiler==4.1.1
+
+# API 문서화
+drf-yasg==1.21.7
+django-rest-swagger==2.2.0
+
+# 테스트 커버리지
+coverage[toml]==7.3.2
+codecov==2.1.13

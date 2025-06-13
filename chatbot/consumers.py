@@ -58,12 +58,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def handle_chat_message(self, data):
         """일반 채팅 메시지 처리"""
         message_content = data.get('message', '')
+        shell_type = data.get('shell_type')
+        command_mode = data.get('command_mode', False)
         
         if not message_content.strip():
             return
         
+        # 메타데이터 구성
+        metadata = {}
+        if shell_type:
+            metadata['shell_type'] = shell_type
+        if command_mode:
+            metadata['command_mode'] = command_mode
+        
         # 사용자 메시지 저장
-        user_message = await self.save_message('user', message_content)
+        user_message = await self.save_message('user', message_content, metadata)
         
         # 사용자 메시지 브로드캐스트
         await self.channel_layer.group_send(
@@ -74,13 +83,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'id': user_message.id,
                     'type': 'user',
                     'content': message_content,
-                    'timestamp': user_message.timestamp.isoformat()
+                    'timestamp': user_message.timestamp.isoformat(),
+                    'metadata': metadata
                 }
             }
         )
         
         # AI 응답 생성 (비동기)
-        asyncio.create_task(self.generate_ai_response(message_content))
+        asyncio.create_task(self.generate_ai_response(message_content, shell_type, command_mode))
     
     async def handle_command_execution(self, data):
         """명령어 실행 처리"""
@@ -123,7 +133,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
         )
     
-    async def generate_ai_response(self, message_content):
+    async def generate_ai_response(self, message_content, shell_type=None, command_mode=False):
         """AI 응답 생성"""
         try:
             # 타이핑 인디케이터 시작
@@ -136,17 +146,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
             
-            # AI 서비스 호출
+            # AI 서비스 호출 - 추가 컨텍스트 전달
             ai_service = AIService()
+            
+            # 메시지 타입 결정
+            message_type = 'command' if command_mode else 'user'
+            
+            # 컨텍스트에 Shell 정보 추가
+            context = {
+                'shell_type': shell_type,
+                'command_mode': command_mode,
+                'session_id': self.session_id
+            }
+            
             ai_response = await database_sync_to_async(
                 ai_service.process_message
-            )(message_content, self.session_id, 'user')
+            )(message_content, self.session_id, message_type, context)
+            
+            # AI 응답 메타데이터 구성
+            response_metadata = ai_response.get('metadata', {})
+            if shell_type:
+                response_metadata['recommended_shell'] = shell_type
+            if command_mode:
+                response_metadata['triggered_by_command_mode'] = True
             
             # AI 응답 저장
             ai_message = await self.save_message(
                 'ai', 
                 ai_response['content'],
-                ai_response.get('metadata', {})
+                response_metadata
             )
             
             # 타이핑 인디케이터 종료
@@ -169,7 +197,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'type': 'ai',
                         'content': ai_response['content'],
                         'timestamp': ai_message.timestamp.isoformat(),
-                        'metadata': ai_response.get('metadata', {})
+                        'metadata': response_metadata
                     }
                 }
             )

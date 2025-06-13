@@ -87,47 +87,88 @@ class AIService:
         self.ollama_client = OllamaClient()
         self.code_client = OllamaClient(model=settings.CODE_AI_MODEL)
         
-    def process_message(self, message: str, session_id: str, message_type: str = 'user') -> Dict[str, Any]:
+    def process_message(self, message: str, session_id: str, message_type: str = 'user', context: Dict = None) -> Dict[str, Any]:
         """메시지 처리 및 적절한 AI 응답 생성"""
         
-        # 의도 분석
-        intent = self.analyze_intent(message)
+        context = context or {}
+        
+        # 의도 분석 - 컨텍스트 정보 활용
+        intent = self.analyze_intent(message, context)
         
         # 세션 컨텍스트 가져오기
-        context = self.get_session_context(session_id)
+        session_context = self.get_session_context(session_id)
         
         # 의도에 따른 처리
         if intent['type'] == 'command_execution':
-            return self.handle_command_request(message, context, intent)
+            return self.handle_command_request(message, session_context, intent, context)
         elif intent['type'] == 'code_analysis':
-            return self.handle_code_analysis(message, context, intent)
+            return self.handle_code_analysis(message, session_context, intent, context)
         elif intent['type'] == 'system_admin':
-            return self.handle_system_admin(message, context, intent)
+            return self.handle_system_admin(message, session_context, intent, context)
         elif intent['type'] == 'general_chat':
-            return self.handle_general_chat(message, context, intent)
+            return self.handle_general_chat(message, session_context, intent, context)
         else:
-            return self.handle_default(message, context)
+            return self.handle_default(message, session_context, context)
     
-    def analyze_intent(self, message: str) -> Dict[str, Any]:
-        """사용자 메시지의 의도 분석"""
+    def analyze_intent(self, message: str, context: Dict = None) -> Dict[str, Any]:
+        """사용자 메시지의 의도 분석 - 컨텍스트 고려"""
         
-        # 명령어 실행 관련 키워드
-        command_keywords = [
-            '실행', '명령어', 'execute', 'run', 'command', '터미널',
-            'ls', 'cd', 'pwd', 'ps', 'kill', 'grep', 'find', 'cat',
-            'tail', 'head', 'chmod', 'chown', 'mkdir', 'rm', 'cp', 'mv'
-        ]
+        context = context or {}
+        shell_type = context.get('shell_type')
+        command_mode = context.get('command_mode', False)
+        
+        # 명령어 모드인 경우 자동으로 명령어 실행 의도로 분류
+        if command_mode:
+            return {
+                'type': 'command_execution',
+                'confidence': 0.95,
+                'extracted_command': message.strip(),
+                'details': {
+                    'command': message.strip(),
+                    'shell_type': shell_type,
+                    'explicit_command_mode': True
+                }
+            }
+        
+        # OS별 명령어 키워드 정의
+        import platform
+        is_windows = platform.system().lower() == 'windows'
+        
+        if is_windows or shell_type in ['powershell', 'cmd']:
+            # Windows 명령어 키워드
+            command_keywords = [
+                '실행', '명령어', 'execute', 'run', 'command', '터미널',
+                # Windows 특화 명령어
+                'dir', 'cls', 'type', 'copy', 'del', 'md', 'rd', 'cd', 'pushd', 'popd',
+                'tasklist', 'taskkill', 'systeminfo', 'ipconfig', 'netstat', 'ping',
+                # PowerShell 명령어
+                'get-process', 'get-service', 'get-childitem', 'get-location',
+                'set-location', 'new-item', 'remove-item', 'copy-item', 'move-item',
+                'get-content', 'set-content', 'select-string', 'measure-object',
+                'where-object', 'foreach-object', 'get-wmiobject', 'get-computerinfo'
+            ]
+        else:
+            # Unix/Linux 명령어 키워드
+            command_keywords = [
+                '실행', '명령어', 'execute', 'run', 'command', '터미널',
+                'ls', 'cd', 'pwd', 'ps', 'kill', 'grep', 'find', 'cat',
+                'tail', 'head', 'chmod', 'chown', 'mkdir', 'rm', 'cp', 'mv',
+                'df', 'du', 'top', 'htop', 'free', 'uname', 'whoami', 'id',
+                'tar', 'gzip', 'wget', 'curl', 'ssh', 'scp', 'rsync'
+            ]
         
         # 코드 분석 관련 키워드
         code_keywords = [
             '코드', 'code', '스크립트', 'script', '분석', 'analyze',
-            '디버그', 'debug', '오류', 'error', '버그', 'bug'
+            '디버그', 'debug', '오류', 'error', '버그', 'bug', 'exception',
+            'python', 'java', 'javascript', 'c++', 'c#', 'go', 'rust'
         ]
         
         # 시스템 관리 관련 키워드
         system_keywords = [
             '시스템', 'system', '서버', 'server', '모니터링', 'monitoring',
-            '성능', 'performance', '로그', 'log', '설정', 'config'
+            '성능', 'performance', '로그', 'log', '설정', 'config',
+            '네트워크', 'network', '방화벽', 'firewall', '보안', 'security'
         ]
         
         message_lower = message.lower()
@@ -139,7 +180,10 @@ class AIService:
                 'type': 'command_execution',
                 'confidence': 0.9,
                 'extracted_command': extracted_command,
-                'details': {'command': extracted_command}
+                'details': {
+                    'command': extracted_command,
+                    'shell_type': shell_type
+                }
             }
         
         # 코드 분석 패턴 감지
@@ -147,7 +191,7 @@ class AIService:
             return {
                 'type': 'code_analysis',
                 'confidence': 0.8,
-                'details': {}
+                'details': {'shell_type': shell_type}
             }
         
         # 시스템 관리 패턴 감지
@@ -155,7 +199,7 @@ class AIService:
             return {
                 'type': 'system_admin',
                 'confidence': 0.8,
-                'details': {}
+                'details': {'shell_type': shell_type}
             }
         
         # 일반 대화
@@ -163,7 +207,7 @@ class AIService:
             return {
                 'type': 'general_chat',
                 'confidence': 0.6,
-                'details': {}
+                'details': {'shell_type': shell_type}
             }
     
     def extract_command(self, message: str) -> Optional[str]:
@@ -264,35 +308,54 @@ class AIService:
         except ChatSession.DoesNotExist:
             return []
     
-    def handle_command_request(self, message: str, context: List[Dict], intent: Dict) -> Dict[str, Any]:
+    def handle_command_request(self, message: str, context: List[Dict], intent: Dict, user_context: Dict = None) -> Dict[str, Any]:
         """명령어 실행 요청 처리"""
         
+        user_context = user_context or {}
         command = intent['details'].get('command')
+        shell_type = user_context.get('shell_type') or intent['details'].get('shell_type')
         
         if not command:
             # OS별 예시 명령어 제공
             import platform
-            if platform.system().lower() == 'windows':
+            detected_os = platform.system().lower()
+            
+            # 사용자가 지정한 shell_type이 있으면 그것을 우선으로, 없으면 OS에 따라 결정
+            if shell_type == 'powershell' or (not shell_type and detected_os == 'windows'):
+                examples = [
+                    '`Get-ChildItem` - 현재 디렉토리 파일 목록 보기',
+                    '`Get-Process` - 실행 중인 프로세스 목록',
+                    '`Get-ComputerInfo` - 컴퓨터 정보 확인',
+                    '`Test-Connection google.com` - 네트워크 연결 테스트'
+                ]
+                shell_name = "PowerShell"
+            elif shell_type == 'cmd' or (not shell_type and detected_os == 'windows'):
                 examples = [
                     '`dir` - 현재 디렉토리 파일 목록 보기',
-                    '`Get-Process` - 실행 중인 프로세스 목록 (PowerShell)',
-                    '`systeminfo` - 시스템 정보 확인'
+                    '`tasklist` - 실행 중인 프로세스 목록',
+                    '`systeminfo` - 시스템 정보 확인',
+                    '`ping google.com` - 네트워크 연결 테스트'
                 ]
+                shell_name = "Command Prompt"
             else:
                 examples = [
                     '`ls -la` - 현재 디렉토리 파일 목록 보기',
                     '`ps aux` - 실행 중인 프로세스 목록',
-                    '`df -h` - 디스크 사용량 확인'
+                    '`df -h` - 디스크 사용량 확인',
+                    '`ping google.com` - 네트워크 연결 테스트'
                 ]
+                shell_name = "Unix Shell"
             
             example_text = '\n'.join(examples)
             
             return {
-                'content': f"실행할 명령어를 명확히 지정해주세요.\n\n**예시:**\n{example_text}\n\n"
+                'content': f"실행할 명령어를 명확히 지정해주세요.\n\n"
+                          f"**{shell_name} 예시:**\n{example_text}\n\n"
                           "또는 자연어로 '파일 목록 보여줘', '프로세스 확인해줘' 등으로 요청하세요.",
                 'metadata': {
                     'type': 'command_help',
-                    'os_type': platform.system(),
+                    'os_type': detected_os,
+                    'shell_type': shell_type,
                     'suggested_format': '`command` 또는 "command 실행해줘"'
                 }
             }
@@ -307,12 +370,13 @@ class AIService:
                           "이 명령어는 시스템에 손상을 줄 수 있어서 실행을 권장하지 않습니다.",
                 'metadata': {
                     'type': 'dangerous_command',
-                    'command': command
+                    'command': command,
+                    'shell_type': shell_type
                 }
             }
         
         # 명령어 설명 및 실행 안내
-        explanation = self.explain_command(command)
+        explanation = self.explain_command(command, shell_type)
         
         return {
             'content': f"명령어 `{command}`를 실행하겠습니다.\n\n"
@@ -322,12 +386,16 @@ class AIService:
                 'type': 'command_ready',
                 'command': command,
                 'explanation': explanation,
+                'shell_type': shell_type,
                 'execute_button': True
             }
         }
     
-    def handle_code_analysis(self, message: str, context: List[Dict], intent: Dict) -> Dict[str, Any]:
+    def handle_code_analysis(self, message: str, context: List[Dict], intent: Dict, user_context: Dict = None) -> Dict[str, Any]:
         """코드 분석 요청 처리"""
+        
+        user_context = user_context or {}
+        shell_type = user_context.get('shell_type')
         
         system_prompt = """당신은 코드 분석 전문가입니다. 
         사용자가 제공한 코드나 오류를 분석하고 해결책을 제시하세요."""
@@ -335,9 +403,14 @@ class AIService:
         # 이전 컨텍스트 포함
         context_str = self.format_context(context)
         
+        # Shell 타입별 컨텍스트 추가
+        shell_context = ""
+        if shell_type:
+            shell_context = f"\n실행 환경: {shell_type}"
+        
         prompt = f"""
         컨텍스트:
-        {context_str}
+        {context_str}{shell_context}
         
         사용자 요청: {message}
         
@@ -354,7 +427,8 @@ class AIService:
                 'content': response.get('response', 'AI 응답을 생성할 수 없습니다.'),
                 'metadata': {
                     'type': 'code_analysis',
-                    'model_used': self.code_client.model
+                    'model_used': self.code_client.model,
+                    'shell_type': shell_type
                 }
             }
         except Exception as e:
@@ -363,17 +437,30 @@ class AIService:
                 'metadata': {'type': 'error'}
             }
     
-    def handle_system_admin(self, message: str, context: List[Dict], intent: Dict) -> Dict[str, Any]:
+    def handle_system_admin(self, message: str, context: List[Dict], intent: Dict, user_context: Dict = None) -> Dict[str, Any]:
         """시스템 관리 요청 처리"""
         
-        system_prompt = """당신은 시스템 관리 전문가입니다.
-        리눅스/유닉스 시스템 관리, 모니터링, 트러블슈팅에 대한 조언을 제공하세요."""
+        user_context = user_context or {}
+        shell_type = user_context.get('shell_type')
+        
+        # Shell 타입에 따른 시스템 프롬프트
+        if shell_type in ['powershell', 'cmd']:
+            system_prompt = """당신은 Windows 시스템 관리 전문가입니다.
+            Windows 시스템 관리, 모니터링, 트러블슈팅에 대한 조언을 제공하세요."""
+        else:
+            system_prompt = """당신은 시스템 관리 전문가입니다.
+            리눅스/유닉스 시스템 관리, 모니터링, 트러블슈팅에 대한 조언을 제공하세요."""
         
         context_str = self.format_context(context)
         
+        # Shell 타입별 컨텍스트 추가
+        shell_context = ""
+        if shell_type:
+            shell_context = f"\n실행 환경: {shell_type}"
+        
         prompt = f"""
         컨텍스트:
-        {context_str}
+        {context_str}{shell_context}
         
         시스템 관리 요청: {message}
         
@@ -390,7 +477,8 @@ class AIService:
                 'content': response.get('response', 'AI 응답을 생성할 수 없습니다.'),
                 'metadata': {
                     'type': 'system_admin',
-                    'model_used': self.ollama_client.model
+                    'model_used': self.ollama_client.model,
+                    'shell_type': shell_type
                 }
             }
         except Exception as e:
@@ -399,11 +487,19 @@ class AIService:
                 'metadata': {'type': 'error'}
             }
     
-    def handle_general_chat(self, message: str, context: List[Dict], intent: Dict) -> Dict[str, Any]:
+    def handle_general_chat(self, message: str, context: List[Dict], intent: Dict, user_context: Dict = None) -> Dict[str, Any]:
         """일반 대화 처리"""
         
-        system_prompt = """당신은 XShell 터미널 도우미입니다.
-        친근하고 도움이 되는 방식으로 대화하며, 필요시 터미널 작업을 도와주세요."""
+        user_context = user_context or {}
+        shell_type = user_context.get('shell_type')
+        
+        # Shell 타입별 시스템 프롬프트
+        if shell_type in ['powershell', 'cmd']:
+            system_prompt = """당신은 Windows XShell 터미널 도우미입니다.
+            친근하고 도움이 되는 방식으로 대화하며, 필요시 Windows 터미널 작업을 도와주세요."""
+        else:
+            system_prompt = """당신은 XShell 터미널 도우미입니다.
+            친근하고 도움이 되는 방식으로 대화하며, 필요시 터미널 작업을 도와주세요."""
         
         # Chat API 사용
         messages = context + [{'role': 'user', 'content': message}]
@@ -414,7 +510,8 @@ class AIService:
                 'content': response.get('message', {}).get('content', 'AI 응답을 생성할 수 없습니다.'),
                 'metadata': {
                     'type': 'general_chat',
-                    'model_used': self.ollama_client.model
+                    'model_used': self.ollama_client.model,
+                    'shell_type': shell_type
                 }
             }
         except Exception as e:
@@ -423,41 +520,89 @@ class AIService:
                 'metadata': {'type': 'error'}
             }
     
-    def handle_default(self, message: str, context: List[Dict]) -> Dict[str, Any]:
+    def handle_default(self, message: str, context: List[Dict], user_context: Dict = None) -> Dict[str, Any]:
         """기본 처리"""
+        
+        user_context = user_context or {}
+        shell_type = user_context.get('shell_type')
+        
+        # OS/Shell별 환영 메시지
+        if shell_type == 'powershell':
+            examples = [
+                "🔧 **PowerShell 명령어**: `Get-Process` 또는 '프로세스 확인해줘'",
+                "💻 **코드 분석**: PowerShell 스크립트 분석",
+                "⚙️ **시스템 관리**: Windows 서버 관리 및 모니터링 조언"
+            ]
+        elif shell_type == 'cmd':
+            examples = [
+                "🔧 **CMD 명령어**: `dir` 또는 '파일 목록 보여줘'",
+                "💻 **배치 파일**: .bat 스크립트 분석",
+                "⚙️ **시스템 관리**: Windows 시스템 관리 조언"
+            ]
+        else:
+            examples = [
+                "🔧 **명령어 실행**: `ls -la` 또는 '파일 목록 보여줘'",
+                "💻 **코드 분석**: 오류 메시지나 스크립트 분석",
+                "⚙️ **시스템 관리**: 서버 관리 및 모니터링 조언"
+            ]
+        
+        example_text = '\n'.join(examples)
+        
         return {
             'content': "안녕하세요! XShell 터미널 도우미입니다.\n"
                       "다음과 같은 도움을 드릴 수 있습니다:\n\n"
-                      "🔧 **명령어 실행**: `ls -la` 또는 '파일 목록 보여줘'\n"
-                      "💻 **코드 분석**: 오류 메시지나 스크립트 분석\n"
-                      "⚙️ **시스템 관리**: 서버 관리 및 모니터링 조언\n"
+                      f"{example_text}\n"
                       "💬 **일반 대화**: 궁금한 것들을 자유롭게 물어보세요\n\n"
                       "무엇을 도와드릴까요?",
             'metadata': {
                 'type': 'welcome',
-                'capabilities': ['command_execution', 'code_analysis', 'system_admin', 'general_chat']
+                'capabilities': ['command_execution', 'code_analysis', 'system_admin', 'general_chat'],
+                'shell_type': shell_type
             }
         }
     
-    def explain_command(self, command: str) -> str:
+    def explain_command(self, command: str, shell_type: str = None) -> str:
         """명령어 설명 생성 - OS별 명령어 지원"""
         
         import platform
         is_windows = platform.system().lower() == 'windows'
         
+        # shell_type이 지정되면 그것을 우선으로, 없으면 OS에 따라 결정
+        if shell_type == 'powershell' or (not shell_type and is_windows):
+            target_shell = 'powershell'
+        elif shell_type == 'cmd':
+            target_shell = 'cmd'
+        else:
+            target_shell = 'unix'
+        
         try:
-            if is_windows:
-                system_prompt = """당신은 Windows 명령어 전문가입니다. 
-                Windows Command Prompt와 PowerShell 명령어를 간단히 설명해주세요."""
+            if target_shell == 'powershell':
+                system_prompt = """당신은 PowerShell 전문가입니다. 
+                PowerShell 명령어를 간단히 설명해주세요."""
                 
                 prompt = f"""
-                다음 Windows 명령어를 간단히 설명해주세요:
+                다음 PowerShell 명령어를 간단히 설명해주세요:
                 
                 명령어: {command}
                 
                 설명은 다음 형식으로 해주세요:
                 - 기능: 명령어가 수행하는 작업
-                - Shell: Command Prompt 또는 PowerShell 여부
+                - 매개변수: 사용된 주요 매개변수들의 의미 (있다면)
+                - 주의사항: 실행 시 주의할 점 (있다면)
+                
+                2-3줄로 간단히 설명해주세요.
+                """
+            elif target_shell == 'cmd':
+                system_prompt = """당신은 Windows Command Prompt 전문가입니다. 
+                CMD 명령어를 간단히 설명해주세요."""
+                
+                prompt = f"""
+                다음 Command Prompt 명령어를 간단히 설명해주세요:
+                
+                명령어: {command}
+                
+                설명은 다음 형식으로 해주세요:
+                - 기능: 명령어가 수행하는 작업
                 - 옵션: 사용된 주요 옵션들의 의미 (있다면)
                 - 주의사항: 실행 시 주의할 점 (있다면)
                 
@@ -485,10 +630,12 @@ class AIService:
             
         except Exception:
             # AI가 실패하면 기본 설명 제공
-            if is_windows:
-                return f'`{command}` Windows 명령어입니다.'
+            if target_shell == 'powershell':
+                return f'`{command}` PowerShell 명령어입니다.'
+            elif target_shell == 'cmd':
+                return f'`{command}` Command Prompt 명령어입니다.'
             else:
-                return f'`{command}` 리눅스/유닉스 명령어입니다.'
+                return f'`{command}` Unix/Linux 명령어입니다.'
     
     def format_context(self, context: List[Dict]) -> str:
         """컨텍스트를 문자열로 포맷"""

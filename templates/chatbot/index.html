@@ -129,6 +129,21 @@
                     
                     <!-- 메시지 입력 영역 -->
                     <div class="chat-input-container p-3 border-top bg-light">
+                        <!-- Shell 타입 선택 (Windows) -->
+                        <div class="shell-selector mb-2" id="shellSelector" style="display: none;">
+                            <div class="d-flex align-items-center">
+                                <label class="form-label me-2 mb-0">Shell:</label>
+                                <select class="form-select form-select-sm me-2" id="shellTypeSelect" style="width: auto;">
+                                    <option value="auto">자동 감지</option>
+                                    <option value="powershell">PowerShell</option>
+                                    <option value="cmd">Command Prompt</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-secondary" id="toggleShellSelector" title="Shell 선택">
+                                    <i class="fas fa-terminal"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div class="input-group">
                             <textarea class="form-control" id="messageInput" placeholder="메시지를 입력하세요... (Shift+Enter로 줄바꿈)" rows="1"></textarea>
                             <button class="btn btn-primary" type="button" id="sendBtn">
@@ -140,11 +155,16 @@
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="#" id="attachFileBtn"><i class="fas fa-file me-2"></i>파일 첨부</a></li>
                                 <li><a class="dropdown-item" href="#" id="commandModeBtn"><i class="fas fa-terminal me-2"></i>명령어 모드</a></li>
+                                <li><a class="dropdown-item" href="#" id="shellSelectorBtn"><i class="fas fa-cog me-2"></i>Shell 설정</a></li>
                                 <li><a class="dropdown-item" href="#" id="voiceInputBtn"><i class="fas fa-microphone me-2"></i>음성 입력</a></li>
                             </ul>
                         </div>
                         <div class="input-info mt-2">
-                            <small class="text-muted">AI가 귀하의 메시지를 분석하여 적절한 작업을 수행합니다</small>
+                            <small class="text-muted">
+                                <span id="osInfo">OS 자동 감지</span> • 
+                                <span id="shellInfo">Shell: 자동</span> • 
+                                AI가 귀하의 메시지를 분석하여 적절한 작업을 수행합니다
+                            </small>
                         </div>
                     </div>
                 </div>

@@ -447,20 +447,214 @@ html, body {
     }
 }
 
-/* 로딩 애니메이션 */
-.loading {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+/* Shell 선택기 스타일 */
+.shell-selector {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.shell-selector .form-select {
+    min-width: 140px;
+}
+
+#toggleShellSelector {
+    width: 36px;
+    height: 36px;
+}
+
+/* 명령어 모드 스타일 */
+#messageInput.command-mode {
+    background: #1e1e1e;
+    color: #00ff00;
+    font-family: 'Courier New', monospace;
+    border: 2px solid #00ff00;
+}
+
+#messageInput.command-mode::placeholder {
+    color: #888;
+}
+
+/* OS 및 Shell 정보 표시 */
+.input-info {
+    font-size: 0.75rem;
+}
+
+.input-info span {
+    margin-right: 8px;
+}
+
+/* 메시지 메타데이터 */
+.message-meta .shell-type {
+    background: #007bff;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+}
+
+.message.result .shell-type {
+    background: #28a745;
+}
+
+/* Windows 스타일 명령어 출력 */
+.message.result.windows {
+    background: #0c0c0c;
+    color: #cccccc;
+}
+
+.message.result.powershell {
+    background: #012456;
+    color: #ffffff;
+}
+
+/* 명령어 실행 버튼 강화 */
+.execute-command-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.execute-command-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.execute-command-btn:hover::before {
+    left: 100%;
+}
+
+/* 드롭다운 메뉴 개선 */
+.dropdown-menu {
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border: none;
+}
+
+.dropdown-item {
+    padding: 8px 16px;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+}
+
+/* Shell 타입별 아이콘 */
+.shell-icon-powershell::before {
+    content: "PS";
+    background: #0078d4;
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.shell-icon-cmd::before {
+    content: "CMD";
+    background: #000000;
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.shell-icon-bash::before {
+    content: "BASH";
+    background: #4eaa25;
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+/* 반응형 Shell 선택기 */
+@media (max-width: 768px) {
+    .shell-selector {
+        flex-wrap: wrap;
+    }
+    
+    .shell-selector .form-select {
+        min-width: 120px;
+        margin-bottom: 4px;
+    }
+    
+    .shell-selector .d-flex {
+        flex-wrap: wrap;
+    }
+}
+
+/* 애니메이션 효과 */
+@keyframes shellTypeChange {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.shell-selector.changing {
+    animation: shellTypeChange 0.3s ease;
+}
+
+/* 명령어 모드 토글 애니메이션 */
+@keyframes commandModeToggle {
+    0% { border-color: #dee2e6; background: white; }
+    50% { border-color: #00ff00; background: #f0f8f0; }
+    100% { border-color: #00ff00; background: #1e1e1e; }
+}
+
+#messageInput.command-mode-entering {
+    animation: commandModeToggle 0.5s ease;
+}
+
+/* Windows 테마 */
+.windows-theme {
+    --primary-color: #0078d4;
+    --secondary-color: #005a9e;
+    --accent-color: #00bcf2;
+}
+
+.windows-theme .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.windows-theme .btn-primary:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* 성능 최적화 */
+.shell-selector, .input-group, .message {
+    will-change: transform;
+}
+
+/* 고대비 모드 지원 */
+@media (prefers-contrast: high) {
+    .shell-selector {
+        border: 2px solid #000;
+    }
+    
+    #messageInput.command-mode {
+        border: 3px solid #00ff00;
+    }
 }
 
 /* 스크롤바 스타일 */
