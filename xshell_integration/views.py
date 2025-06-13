@@ -1,9 +1,10 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from datetime import timedelta
 import json
+import time
 
 from .services import XShellService
 from chatbot.models import XShellSession
@@ -39,9 +40,7 @@ def execute_command(request):
         }, status=500)
 
 
-from django.http import StreamingHttpResponse
-import time
-
+@csrf_exempt
 def execute_command_stream(request):
     """스트리밍 명령어 실행 API"""
     if request.method != 'POST':
@@ -192,82 +191,6 @@ def list_sessions(request):
         }, status=500)
 
 
-from django.http import StreamingHttpResponse
-import time
-
-def execute_command_stream(request):
-    """스트리밍 명령어 실행 API"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST method required'}, status=405)
-    
-    try:
-        data = json.loads(request.body)
-        command = data.get('command', '')
-        session_name = data.get('session_name', 'default')
-        
-        if not command:
-            return JsonResponse({
-                'success': False,
-                'error': '명령어가 필요합니다.'
-            }, status=400)
-        
-        def stream_output():
-            xshell_service = XShellService()
-            try:
-                for output_chunk in xshell_service.execute_command_stream(command, session_name):
-                    yield f"data: {json.dumps({'output': output_chunk})}\n\n"
-                    time.sleep(0.1)  # 스트리밍 속도 조절
-                yield f"data: {json.dumps({'status': 'completed'})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-        
-        response = StreamingHttpResponse(
-            stream_output(),
-            content_type='text/event-stream'
-        )
-        response['Cache-Control'] = 'no-cache'
-        response['Connection'] = 'keep-alive'
-        return response
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-def health_check(request):
-    """XShell 서비스 상태 확인"""
-    try:
-        xshell_service = XShellService()
-        
-        # 활성 세션 수 확인
-        active_sessions = XShellSession.objects.filter(is_connected=True).count()
-        total_sessions = XShellSession.objects.count()
-        
-        # 최근 명령어 실행 확인
-        from chatbot.models import CommandHistory
-        recent_commands = CommandHistory.objects.filter(
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).count()
-        
-        return JsonResponse({
-            'success': True,
-            'status': 'healthy',
-            'active_sessions': active_sessions,
-            'total_sessions': total_sessions,
-            'recent_commands': recent_commands,
-            'xshell_path': xshell_service.xshell_path,
-            'sessions_path': xshell_service.sessions_path
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
 @csrf_exempt
 @require_http_methods(["POST"])
 def test_session(request, session_name):
@@ -314,82 +237,6 @@ def get_command_history(request, session_name):
         }, status=500)
 
 
-from django.http import StreamingHttpResponse
-import time
-
-def execute_command_stream(request):
-    """스트리밍 명령어 실행 API"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST method required'}, status=405)
-    
-    try:
-        data = json.loads(request.body)
-        command = data.get('command', '')
-        session_name = data.get('session_name', 'default')
-        
-        if not command:
-            return JsonResponse({
-                'success': False,
-                'error': '명령어가 필요합니다.'
-            }, status=400)
-        
-        def stream_output():
-            xshell_service = XShellService()
-            try:
-                for output_chunk in xshell_service.execute_command_stream(command, session_name):
-                    yield f"data: {json.dumps({'output': output_chunk})}\n\n"
-                    time.sleep(0.1)  # 스트리밍 속도 조절
-                yield f"data: {json.dumps({'status': 'completed'})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-        
-        response = StreamingHttpResponse(
-            stream_output(),
-            content_type='text/event-stream'
-        )
-        response['Cache-Control'] = 'no-cache'
-        response['Connection'] = 'keep-alive'
-        return response
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-def health_check(request):
-    """XShell 서비스 상태 확인"""
-    try:
-        xshell_service = XShellService()
-        
-        # 활성 세션 수 확인
-        active_sessions = XShellSession.objects.filter(is_connected=True).count()
-        total_sessions = XShellSession.objects.count()
-        
-        # 최근 명령어 실행 확인
-        from chatbot.models import CommandHistory
-        recent_commands = CommandHistory.objects.filter(
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).count()
-        
-        return JsonResponse({
-            'success': True,
-            'status': 'healthy',
-            'active_sessions': active_sessions,
-            'total_sessions': total_sessions,
-            'recent_commands': recent_commands,
-            'xshell_path': xshell_service.xshell_path,
-            'sessions_path': xshell_service.sessions_path
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
 @csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_session(request, session_name):
@@ -401,130 +248,6 @@ def delete_session(request, session_name):
         return JsonResponse({
             'success': True,
             'message': f'세션 "{session_name}"이 삭제되었습니다.'
-        })
-        
-    except XShellSession.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'error': '세션을 찾을 수 없습니다.'
-        }, status=404)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-from django.http import StreamingHttpResponse
-import time
-
-def execute_command_stream(request):
-    """스트리밍 명령어 실행 API"""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'POST method required'}, status=405)
-    
-    try:
-        data = json.loads(request.body)
-        command = data.get('command', '')
-        session_name = data.get('session_name', 'default')
-        
-        if not command:
-            return JsonResponse({
-                'success': False,
-                'error': '명령어가 필요합니다.'
-            }, status=400)
-        
-        def stream_output():
-            xshell_service = XShellService()
-            try:
-                for output_chunk in xshell_service.execute_command_stream(command, session_name):
-                    yield f"data: {json.dumps({'output': output_chunk})}\n\n"
-                    time.sleep(0.1)  # 스트리밍 속도 조절
-                yield f"data: {json.dumps({'status': 'completed'})}\n\n"
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-        
-        response = StreamingHttpResponse(
-            stream_output(),
-            content_type='text/event-stream'
-        )
-        response['Cache-Control'] = 'no-cache'
-        response['Connection'] = 'keep-alive'
-        return response
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-def health_check(request):
-    """XShell 서비스 상태 확인"""
-    try:
-        xshell_service = XShellService()
-        
-        # 활성 세션 수 확인
-        active_sessions = XShellSession.objects.filter(is_connected=True).count()
-        total_sessions = XShellSession.objects.count()
-        
-        # 최근 명령어 실행 확인
-        from chatbot.models import CommandHistory
-        recent_commands = CommandHistory.objects.filter(
-            timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).count()
-        
-        return JsonResponse({
-            'success': True,
-            'status': 'healthy',
-            'active_sessions': active_sessions,
-            'total_sessions': total_sessions,
-            'recent_commands': recent_commands,
-            'xshell_path': xshell_service.xshell_path,
-            'sessions_path': xshell_service.sessions_path
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@csrf_exempt
-@require_http_methods(["PUT"])
-def update_session(request, session_id):
-    """XShell 세션 업데이트"""
-    try:
-        data = json.loads(request.body)
-        session = XShellSession.objects.get(id=session_id)
-        
-        # 업데이트 가능한 필드들
-        if 'name' in data:
-            session.name = data['name']
-        if 'host' in data:
-            session.host = data['host']
-        if 'username' in data:
-            session.username = data['username']
-        if 'port' in data:
-            session.port = data['port']
-        if 'password' in data:
-            xshell_service = XShellService()
-            session.password_encrypted = xshell_service.encrypt_password(data['password'])
-        if 'private_key_path' in data:
-            session.private_key_path = data['private_key_path']
-        
-        session.save()
-        
-        return JsonResponse({
-            'success': True,
-            'session': {
-                'id': session.id,
-                'name': session.name,
-                'host': session.host,
-                'username': session.username,
-                'port': session.port
-            }
         })
         
     except XShellSession.DoesNotExist:
