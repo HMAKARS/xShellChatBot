@@ -10,29 +10,17 @@ from xshell_integration.services import XShellService
 
 
 class ChatConsumer(AsyncWebsocketConsumer):
-    """실시간 채팅을 위한 WebSocket 컨슈머"""
+    """실시간 채팅을 위한 WebSocket 컨슈머 - 1:1 채팅 전용 (Redis 없음)"""
     
     async def connect(self):
         self.session_id = self.scope['url_route']['kwargs']['session_id']
-        self.room_group_name = f'chat_{self.session_id}'
-        
-        # 그룹에 조인
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-        
         await self.accept()
         
         # 세션 존재 확인 및 생성
         await self.ensure_chat_session()
     
     async def disconnect(self, close_code):
-        # 그룹에서 제거
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        pass
     
     async def receive(self, text_data):
         try:
@@ -74,21 +62,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 사용자 메시지 저장
         user_message = await self.save_message('user', message_content, metadata)
         
-        # 사용자 메시지 브로드캐스트
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': {
-                    'id': user_message.id,
-                    'type': 'user',
-                    'content': message_content,
-                    'timestamp': user_message.timestamp.isoformat(),
-                    'metadata': metadata
-                }
-            }
-        )
-        
         # AI 응답 생성 (비동기)
         asyncio.create_task(self.generate_ai_response(message_content, shell_type, command_mode))
     
@@ -103,19 +76,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         # 명령어 메시지 저장
         command_message = await self.save_message('command', command)
         
-        # 명령어 메시지 브로드캐스트
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'message': {
-                    'id': command_message.id,
-                    'type': 'command',
-                    'content': command,
-                    'timestamp': command_message.timestamp.isoformat()
-                }
+        # 명령어 메시지 전송
+        await self.send(text_data=json.dumps({
+            'type': 'message',
+            'message': {
+                'id': command_message.id,
+                'type': 'command',
+                'content': command,
+                'timestamp': command_message.timestamp.isoformat()
             }
-        )
+        }))
         
         # 명령어 실행 (비동기)
         asyncio.create_task(self.execute_command_async(command, session_name))
@@ -124,27 +94,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         """타이핑 인디케이터 처리"""
         is_typing = data.get('is_typing', False)
         
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'typing_indicator',
-                'is_typing': is_typing,
-                'user': 'user'  # 실제로는 사용자 정보 사용
-            }
-        )
+        await self.send(text_data=json.dumps({
+            'type': 'typing',
+            'is_typing': is_typing,
+            'user': 'user'
+        }))
     
     async def generate_ai_response(self, message_content, shell_type=None, command_mode=False):
         """AI 응답 생성"""
         try:
             # 타이핑 인디케이터 시작
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'typing_indicator',
-                    'is_typing': True,
-                    'user': 'ai'
-                }
-            )
+            await self.send(text_data=json.dumps({
+                'type': 'typing',
+                'is_typing': True,
+                'user': 'ai'
+            }))
             
             # AI 서비스 호출 - 추가 컨텍스트 전달
             ai_service = AIService()
@@ -178,43 +142,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
             
             # 타이핑 인디케이터 종료
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'typing_indicator',
-                    'is_typing': False,
-                    'user': 'ai'
-                }
-            )
+            await self.send(text_data=json.dumps({
+                'type': 'typing',
+                'is_typing': False,
+                'user': 'ai'
+            }))
             
-            # AI 응답 브로드캐스트
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'id': ai_message.id,
-                        'type': 'ai',
-                        'content': ai_response['content'],
-                        'timestamp': ai_message.timestamp.isoformat(),
-                        'metadata': response_metadata
-                    }
+            # AI 응답 전송
+            await self.send(text_data=json.dumps({
+                'type': 'message',
+                'message': {
+                    'id': ai_message.id,
+                    'type': 'ai',
+                    'content': ai_response['content'],
+                    'timestamp': ai_message.timestamp.isoformat(),
+                    'metadata': response_metadata
                 }
-            )
+            }))
             
         except Exception as e:
             # 오류 메시지 전송
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'type': 'system',
-                        'content': f'AI 응답 생성 중 오류가 발생했습니다: {str(e)}',
-                        'timestamp': None
-                    }
+            await self.send(text_data=json.dumps({
+                'type': 'message',
+                'message': {
+                    'type': 'system',
+                    'content': f'AI 응답 생성 중 오류가 발생했습니다: {str(e)}',
+                    'timestamp': None
                 }
-            )
+            }))
     
     async def execute_command_async(self, command, session_name):
         """명령어 비동기 실행"""
@@ -236,51 +191,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
             
-            # 결과 브로드캐스트
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'id': result_message.id,
-                        'type': 'result',
-                        'content': result['output'],
-                        'timestamp': result_message.timestamp.isoformat(),
-                        'metadata': result_message.metadata
-                    }
+            # 결과 전송
+            await self.send(text_data=json.dumps({
+                'type': 'message',
+                'message': {
+                    'id': result_message.id,
+                    'type': 'result',
+                    'content': result['output'],
+                    'timestamp': result_message.timestamp.isoformat(),
+                    'metadata': result_message.metadata
                 }
-            )
+            }))
             
         except Exception as e:
             # 오류 메시지 전송
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message': {
-                        'type': 'system',
-                        'content': f'명령어 실행 중 오류가 발생했습니다: {str(e)}',
-                        'timestamp': None
-                    }
+            await self.send(text_data=json.dumps({
+                'type': 'message',
+                'message': {
+                    'type': 'system',
+                    'content': f'명령어 실행 중 오류가 발생했습니다: {str(e)}',
+                    'timestamp': None
                 }
-            )
-    
-    async def chat_message(self, event):
-        """채팅 메시지 전송"""
-        message = event['message']
-        
-        await self.send(text_data=json.dumps({
-            'type': 'message',
-            'message': message
-        }))
-    
-    async def typing_indicator(self, event):
-        """타이핑 인디케이터 전송"""
-        await self.send(text_data=json.dumps({
-            'type': 'typing',
-            'is_typing': event['is_typing'],
-            'user': event['user']
-        }))
+            }))
     
     @database_sync_to_async
     def ensure_chat_session(self):
@@ -304,26 +236,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 
 class XShellConsumer(AsyncWebsocketConsumer):
-    """XShell 터미널을 위한 WebSocket 컨슈머"""
+    """XShell 터미널을 위한 WebSocket 컨슈머 - 1:1 연결 전용 (Redis 없음)"""
     
     async def connect(self):
         self.session_name = self.scope['url_route']['kwargs']['session_name']
-        self.room_group_name = f'xshell_{self.session_name}'
-        
-        # 그룹에 조인
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
-        
         await self.accept()
     
     async def disconnect(self, close_code):
-        # 그룹에서 제거
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name
-        )
+        pass
     
     async def receive(self, text_data):
         try:

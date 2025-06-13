@@ -125,12 +125,19 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Channels settings
+# Channels settings - Redis 완전 제거, 메모리만 사용
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
+
+# Redis 관련 설정 완전 비활성화
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+#     }
+# }
 
 # XShell Integration Settings
 XSHELL_PATH = os.getenv('XSHELL_PATH', r'C:\Program Files\NetSarang\Xshell 8\Xshell.exe')
