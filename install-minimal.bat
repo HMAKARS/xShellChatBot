@@ -67,19 +67,13 @@ if not exist .venv (
     python -m venv .venv
     if %errorlevel% neq 0 (
         echo ❌ 가상환경 생성 실패
-        echo.
-        echo 🔧 해결 방법:
-        echo   1. 디스크 공간 확인 (최소 1GB 필요)
-        echo   2. 폴더 권한 확인 (읽기/쓰기 권한 필요)
-        echo   3. 바이러스 백신 소프트웨어 비활성화 시도
-        echo.
-        goto :install_error
+        pause
+        exit /b 1
     )
     echo ✅ 가상환경 생성 완료
 ) else (
-    echo ✅ 가상환경이 이미 존재합니다
+    echo ✅ 가상환경 확인됨
 )
-echo.
 
 :: 4단계: 가상환경 활성화
 echo 🔄 4단계: 가상환경 활성화
@@ -88,13 +82,8 @@ echo 가상환경 활성화 중...
 call .venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
     echo ❌ 가상환경 활성화 실패
-    echo.
-    echo 🔧 해결 방법:
-    echo   1. .venv 폴더 삭제 후 다시 시도
-    echo   2. 관리자 권한으로 실행
-    echo   3. 바이러스 백신 예외 처리 추가
-    echo.
-    goto :install_error
+    pause
+    exit /b 1
 )
 echo ✅ 가상환경 활성화 완료
 echo.
