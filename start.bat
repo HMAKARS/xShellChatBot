@@ -54,9 +54,12 @@ echo 📚 의존성 확인 중...
 pip show django >nul 2>&1
 if %errorlevel% neq 0 (
     echo 📥 의존성 설치 중... (시간이 걸릴 수 있습니다)
-    pip install -r requirements.txt
+    echo    Windows 전용 패키지 목록을 사용합니다...
+    pip install -r requirements-windows.txt
     if %errorlevel% neq 0 (
         echo ❌ 의존성 설치 실패
+        echo    문제가 지속되면 개별 패키지 설치를 시도합니다...
+        echo    pip install Django channels django-cors-headers requests python-dotenv
         pause
         exit /b 1
     )

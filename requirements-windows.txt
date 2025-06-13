@@ -1,0 +1,56 @@
+# XShell AI 챗봇 - Windows 전용 의존성
+# SQLite 데이터베이스 사용 (PostgreSQL 제외)
+
+# 핵심 Django 및 웹소켓
+Django==4.2.7
+channels==4.0.0
+channels-redis==4.1.0
+django-cors-headers==4.3.1
+
+# HTTP 및 네트워킹
+requests==2.31.0
+websockets==11.0.3
+
+# 환경 설정
+python-dotenv==1.0.0
+
+# AI 백엔드
+ollama==0.1.7
+
+# SSH 및 터미널 연동
+paramiko==3.3.1
+pexpect==4.8.0; sys_platform != "win32"
+wexpect==4.0.0; sys_platform == "win32"
+
+# ASGI 서버
+daphne==4.0.0
+
+# 정적 파일 서빙
+whitenoise==6.6.0
+
+# 데이터베이스 URL 파싱 (SQLite용)
+dj-database-url==2.1.0
+
+# 보안
+django-ratelimit==4.1.0
+django-csp==3.7
+
+# Redis 캐싱
+redis==5.0.1
+django-redis==5.4.0
+
+# 유틸리티
+Pillow==10.1.0
+
+# Windows 특화 라이브러리
+pywin32==306; sys_platform == "win32"
+wmi==1.5.1; sys_platform == "win32"
+
+# 개발 도구 (선택사항)
+# pytest==7.4.3
+# pytest-django==4.7.0
+# pytest-asyncio==0.21.1
+# coverage==7.3.2
+# black==23.11.0
+# isort==5.12.0
+# flake8==6.1.0

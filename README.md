@@ -52,7 +52,10 @@ start.bat
 python -m venv .venv
 .venv\Scripts\activate
 
-# 의존성 설치
+# Windows 전용 의존성 설치 (권장)
+pip install -r requirements-windows.txt
+
+# 또는 전체 기능 (PostgreSQL 포함, 오류 가능성 있음)
 pip install -r requirements.txt
 
 # 데이터베이스 설정
@@ -63,6 +66,8 @@ python manage.py createsuperuser
 # 서버 실행
 python start_server.py
 ```
+
+> **Windows 설치 오류 해결**: `psycopg2-binary` 오류가 발생하면 `requirements-windows.txt`를 사용하세요. 자세한 해결 방법은 [FIX-WINDOWS-INSTALL.md](./FIX-WINDOWS-INSTALL.md)를 참조하세요.
 
 ### Linux/macOS에서 시작
 

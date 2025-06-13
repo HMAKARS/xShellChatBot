@@ -90,11 +90,14 @@ if (-not $SkipChecks) {
     $djangoInstalled = pip show django 2>$null
     if (-not $djangoInstalled) {
         Write-Info "의존성 설치 중... (시간이 걸릴 수 있습니다)"
-        pip install -r requirements.txt
+        Write-Info "Windows 전용 패키지 목록을 사용합니다..."
+        pip install -r requirements-windows.txt
         if ($LASTEXITCODE -eq 0) {
             Write-Success "의존성 설치 완료"
         } else {
             Write-Error "의존성 설치 실패"
+            Write-Host "문제가 지속되면 개별 패키지 설치를 시도합니다:"
+            Write-Host "pip install Django channels django-cors-headers requests python-dotenv"
             Read-Host "계속하려면 Enter를 누르세요"
             exit 1
         }

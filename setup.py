@@ -61,9 +61,14 @@ def setup_environment():
     print(f"\n📋 다음 명령어로 가상환경을 활성화하세요:")
     print(f"   {activate_cmd}")
     
-    # 의존성 설치
+    # 의존성 설치 안내
     print("\n📦 의존성 설치:")
-    print("   pip install -r requirements.txt")
+    if os.name == 'nt':  # Windows
+        print("   pip install -r requirements-windows.txt  # Windows 전용")
+        print("   또는")
+        print("   pip install -r requirements.txt  # 모든 기능 (PostgreSQL 포함)")
+    else:  # Unix/Linux/MacOS
+        print("   pip install -r requirements.txt")
     
     # 데이터베이스 설정
     print("\n🗄️ 데이터베이스 설정:")
