@@ -764,3 +764,121 @@ window.addEventListener('beforeunload', function() {
         chatbot.chatSocket.close();
     }
 });
+
+// XShell 명령어 입력 UI 생성 및 관리
+function showXShellCommandUI(sessionName) {
+    let container = document.getElementById('xshellCommandContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'xshellCommandContainer';
+        container.className = 'p-3 border-top bg-light';
+        container.innerHTML = `
+            <div class="mb-2"><strong>${sessionName} 명령어 실행</strong></div>
+            <div class="input-group mb-2">
+                <input type="text" id="xshellCommandInput" class="form-control" placeholder="명령어 입력 후 Enter">
+                <button class="btn btn-primary" id="xshellCommandSendBtn">실행</button>
+            </div>
+            <div id="xshellCommandResult" class="mt-2" style="white-space:pre-wrap;font-family:monospace;"></div>
+            <div id="xshellCommandError" class="mt-2 text-danger"></div>
+        `;
+        document.querySelector('.main-content').prepend(container);
+    } else {
+        container.style.display = 'block';
+    }
+    document.getElementById('xshellCommandSendBtn').onclick = sendXShellCommand;
+    document.getElementById('xshellCommandInput').onkeydown = function(e) {
+        if (e.key === 'Enter') sendXShellCommand();
+    };
+}
+
+function hideXShellCommandUI() {
+    const container = document.getElementById('xshellCommandContainer');
+    if (container) container.style.display = 'none';
+}
+
+let xshellSocket = null;
+
+function connectXShellSession(relPath, password) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/xshell/`;
+    xshellSocket = new WebSocket(wsUrl);
+    xshellSocket.onopen = function() {
+        xshellSocket.send(JSON.stringify({
+            action: "connect",
+            rel_path: relPath,
+            password: password
+        }));
+    };
+    xshellSocket.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        if (data.type === "connected") {
+            showXShellCommandUI(data.host);
+            displayXShellMessage({ type: 'system', content: `${data.host}에 연결되었습니다!`, timestamp: new Date().toISOString() });
+        } else if (data.type === "output") {
+            displayXShellMessage({ type: 'result', content: data.output, timestamp: new Date().toISOString() });
+            document.getElementById('xshellCommandResult').textContent = data.output;
+        } else if (data.type === "error") {
+            displayXShellMessage({ type: 'system', content: data.error, timestamp: new Date().toISOString() });
+            document.getElementById('xshellCommandError').textContent = data.error;
+        }
+    };
+    xshellSocket.onerror = function() {
+        displayXShellMessage({ type: 'system', content: 'XShell WebSocket 연결 오류', timestamp: new Date().toISOString() });
+    };
+    xshellSocket.onclose = function() {
+        displayXShellMessage({ type: 'system', content: 'XShell 세션 연결이 종료되었습니다.', timestamp: new Date().toISOString() });
+        hideXShellCommandUI();
+    };
+}
+
+function sendXShellCommand() {
+    const input = document.getElementById('xshellCommandInput');
+    const resultDiv = document.getElementById('xshellCommandResult');
+    const errorDiv = document.getElementById('xshellCommandError');
+    const command = input.value.trim();
+    if (!command) return;
+    resultDiv.textContent = '';
+    errorDiv.textContent = '';
+    if (!xshellSocket || xshellSocket.readyState !== 1) {
+        errorDiv.textContent = 'XShell 세션에 연결되어 있지 않습니다.';
+        displayXShellMessage({ type: 'system', content: errorDiv.textContent, timestamp: new Date().toISOString() });
+        return;
+    }
+    displayXShellMessage({ type: 'command', content: command, timestamp: new Date().toISOString() });
+    xshellSocket.send(JSON.stringify({
+        action: "command",
+        command: command
+    }));
+    input.value = '';
+}
+
+function displayXShellMessage(message) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${message.type}`;
+    messageDiv.innerHTML = `
+        <div class="message-content">
+            ${message.type === 'command' ? `<pre><code>${escapeHtml(message.content)}</code></pre>` : escapeHtml(message.content)}
+        </div>
+        <div class="message-meta">${new Date(message.timestamp).toLocaleTimeString()}</div>
+    `;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// XShell 세션 클릭 이벤트 위임 (data-rel-path 사용)
+document.addEventListener('click', function(e) {
+    const xshellItem = e.target.closest('.xshell-session-item');
+    if (xshellItem && xshellItem.dataset.relPath) {
+        const relPath = xshellItem.dataset.relPath;
+        const password = prompt('SSH 비밀번호를 입력하세요:');
+        if (!password) return;
+        connectXShellSession(relPath, password);
+    }
+});
