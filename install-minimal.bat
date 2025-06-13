@@ -2,7 +2,6 @@
 :: XShell AI 챗봇 최소 설치 스크립트 (Windows)
 :: 컴파일 오류 없이 핵심 기능만 설치
 
-setlocal enabledelayedexpansion
 chcp 65001 >nul
 cls
 
@@ -121,13 +120,13 @@ if %errorlevel% neq 0 (
         echo    3. 서비스 파일 문제: ai_backend/services.py 확인
         echo    4. 의존성 문제: pip list 확인
         echo.
-        goto :django_error
+        goto django_error
     ) else (
         echo ✅ 자동 수정 완료, import 재테스트...
         python test-pexpect-fix.py
         if %errorlevel% neq 0 (
             echo ❌ 수정 후에도 import 실패
-            goto :django_error
+            goto django_error
         )
     )
 )
@@ -150,7 +149,7 @@ if %errorlevel% neq 0 (
     echo    2. 마이그레이션 파일 삭제 후 재시도
     echo    3. python manage.py check 로 문제 확인
     echo.
-    goto :django_error
+    goto django_error
 )
 echo ✅ 데이터베이스 설정 완료
 
@@ -177,9 +176,9 @@ if %errorlevel% neq 0 (
     echo.
     echo 💡 Ollama 없이도 XShell 기능은 사용 가능합니다.
     set /p CONTINUE_WITHOUT_OLLAMA="Ollama 없이 계속하시겠습니까? (y/N): "
-    if /i "!CONTINUE_WITHOUT_OLLAMA!"=="y" (
+    if /i "%CONTINUE_WITHOUT_OLLAMA%"=="y" (
         echo ✅ Ollama 없이 설치를 계속합니다.
-        goto :skip_ollama
+        goto skip_ollama
     ) else (
         echo.
         echo 🔗 Ollama 다운로드 페이지를 열어드립니다...
@@ -207,15 +206,15 @@ if %errorlevel% neq 0 (
         for /L %%i in (1,1,10) do (
             timeout /t 1 /nobreak >nul 2>&1
             curl -s http://localhost:11434 >nul 2>&1
-            if !errorlevel! equ 0 (
+            if not errorlevel 1 (
                 echo ✅ Ollama 서비스 시작됨
-                goto :ollama_ready
+                goto ollama_ready
             )
         )
         
         echo ⚠️  Ollama 서비스 자동 시작 실패
         echo    수동으로 Ollama를 시작해주세요: ollama serve
-        goto :skip_ollama
+        goto skip_ollama
     ) else (
         echo ✅ Ollama 서비스 실행 중
     )
@@ -244,7 +243,7 @@ if %errorlevel% neq 0 (
     :: 추가 경량 모델 제안
     echo.
     set /p INSTALL_LIGHT_MODEL="경량 모델(llama3.2:3b, 약 2GB)도 설치하시겠습니까? (y/N): "
-    if /i "!INSTALL_LIGHT_MODEL!"=="y" (
+    if /i "%INSTALL_LIGHT_MODEL%"=="y" (
         echo 📥 llama3.2:3b 모델 다운로드 중...
         ollama pull llama3.2:3b
         if %errorlevel% equ 0 (
@@ -269,8 +268,9 @@ echo   • Django import 오류
 echo.
 echo 📋 다음 단계:
 echo   1. final-test.bat 실행하여 최종 확인
-echo   2. start.bat 실행하여 서버 시작
-echo   3. 또는 수동으로: python manage.py runserver
+echo   2. run-daphne.bat 실행하여 서버 시작 (권장)
+echo   3. 또는 start-server.bat 실행하여 간단 시작
+echo   4. 또는 수동으로: python manage.py runserver
 echo.
 echo 🌐 브라우저에서 http://localhost:8000 접속
 echo.
@@ -279,7 +279,7 @@ echo   • FIX-WINDOWS-INSTALL.md 파일 참조
 echo   • 선택적 패키지 개별 설치
 echo.
 
-goto :success
+goto success
 
 :install_package
 set /a INSTALL_COUNT+=1
@@ -289,7 +289,7 @@ if %errorlevel% neq 0 (
     echo ❌ %~1 설치 실패  
     set /a INSTALL_COUNT-=1
     echo    인터넷 연결을 확인하고 다시 시도해주세요.
-    goto :install_error
+    goto install_error
 )
 echo ✅ %~2 설치 완료
 goto :eof
@@ -339,7 +339,7 @@ if /i "%TRY_AUTO_FIX%"=="y" (
         python test-pexpect-fix.py
         if %errorlevel% equ 0 (
             echo ✅ 수정 완료! 설치를 계속합니다.
-            goto :continue_install
+            goto continue_install
         ) else (
             echo ❌ 재테스트 실패
             echo.
@@ -366,7 +366,7 @@ python manage.py migrate --verbosity=1
 if %errorlevel% neq 0 (
     echo ⚠️ 마이그레이션 재시도 실패 - 수동으로 실행해주세요
 )
-goto :success
+goto success
 
 :success
 echo 🚀 설치 완료! 이제 챗봇을 시작할 수 있습니다.
@@ -375,11 +375,11 @@ set /p START_NOW="지금 바로 서버를 시작하시겠습니까? (y/N): "
 if /i "%START_NOW%"=="y" (
     echo.
     echo 🚀 서버 시작 중...
-    python manage.py runserver
+    call run-daphne.bat
 ) else (
     echo.
     echo 나중에 다음 명령어로 서버를 시작하세요:
-    echo    start.bat 또는 python manage.py runserver
+    echo    run-daphne.bat (권장) 또는 start-server.bat
 )
 
 pause
