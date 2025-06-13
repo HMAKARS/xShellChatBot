@@ -8,8 +8,17 @@ import platform
 from typing import Dict, List, Optional, Generator
 from django.conf import settings
 import paramiko
-import pexpect
-from pexpect import pxssh
+
+# Windows 호환성을 위한 조건부 import
+try:
+    import pexpect
+    from pexpect import pxssh
+    PEXPECT_AVAILABLE = True
+except ImportError:
+    # Windows 환경에서는 pexpect 사용 불가
+    PEXPECT_AVAILABLE = False
+    pexpect = None
+    pxssh = None
 
 from chatbot.models import XShellSession, CommandHistory
 
@@ -438,7 +447,26 @@ class XShellService:
         """원격 SSH 명령어 스트리밍 실행"""
         
         try:
-            # pexpect를 사용한 실시간 SSH 실행
+            # Windows에서는 pexpect가 없으므로 기본 SSH 클라이언트 사용
+            if not PEXPECT_AVAILABLE:
+                yield "Windows 환경에서는 실시간 스트리밍이 제한됩니다."
+                yield "기본 명령어 실행을 사용합니다..."
+                
+                # 기본 execute_remote_command 사용
+                result = self.execute_remote_command(command, xshell_session)
+                
+                if result['success']:
+                    # 출력을 줄 단위로 나누어 스트리밍 효과 연출
+                    lines = result['output'].split('\n')
+                    for line in lines:
+                        if line.strip():
+                            yield line
+                        time.sleep(0.1)  # 약간의 지연으로 스트리밍 느낌
+                else:
+                    yield f"Error: {result['error']}"
+                return
+            
+            # pexpect를 사용한 실시간 SSH 실행 (Linux/macOS에서만)
             ssh_command = f"ssh {xshell_session.username}@{xshell_session.host}"
             
             child = pexpect.spawn(ssh_command)

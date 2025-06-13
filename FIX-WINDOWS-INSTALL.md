@@ -94,7 +94,16 @@ test-django.bat
 python fix-django.py
 ```
 
-### 4. 기타 컴파일 오류
+### 4. pexpect 모듈 오류 (새로 해결됨) ⭐
+**원인**: Unix/Linux 전용 모듈을 Windows에서 import 시도
+**해결**: 조건부 import로 Windows 호환성 확보
+```batch
+# 자동 수정 포함
+python fix-django.py
+python test-pexpect-fix.py
+```
+
+### 5. 기타 컴파일 오류
 **원인**: Visual Studio Build Tools 부족
 **해결**: 바이너리 휠 버전 사용 또는 제외
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-빠른 Django import 테스트
+빠른 Django import 테스트 (pexpect 수정 포함)
 """
 
 import os
@@ -17,16 +17,24 @@ try:
     from chatbot.models import ChatSession, ChatMessage, XShellSession, CommandHistory, AIModel
     print("✅ 모델 import 성공")
     
-    # 테스트 2: 서비스 import
+    # 테스트 2: AI 서비스 import
     from ai_backend.services import AIService
-    from xshell_integration.services import XShellService
-    print("✅ 서비스 import 성공")
+    print("✅ AI 서비스 import 성공")
     
-    # 테스트 3: 뷰 import
+    # 테스트 3: XShell 서비스 import (pexpect 문제 해결됨)
+    from xshell_integration.services import XShellService
+    print("✅ XShell 서비스 import 성공")
+    
+    # 테스트 4: 뷰 import
     from chatbot.views import ChatbotHomeView
     print("✅ 뷰 import 성공")
     
-    print("🎉 모든 테스트 통과!")
+    # 추가 테스트: Windows 환경 확인
+    xshell_service = XShellService()
+    if xshell_service.is_windows:
+        print("✅ Windows 환경 감지됨")
+    
+    print("🎉 모든 테스트 통과! pexpect 수정 완료!")
     
 except Exception as e:
     print(f"❌ 오류: {e}")

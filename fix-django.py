@@ -84,8 +84,24 @@ def check_and_fix_django():
         # 4. 서비스 체크
         print("[4/6] 서비스 체크 중...")
         from ai_backend.services import AIService
-        from xshell_integration.services import XShellService
-        print("✅ 모든 서비스 import 성공")
+        
+        # XShell 서비스는 pexpect 문제 때문에 별도 처리
+        try:
+            from xshell_integration.services import XShellService
+            print("✅ 모든 서비스 import 성공")
+        except ImportError as import_e:
+            if 'pexpect' in str(import_e):
+                print("⚠️ pexpect 모듈 없음 - Windows 환경에서 정상적입니다")
+                print("   pexpect 문제를 자동 수정합니다...")
+                
+                # pexpect import 문제 자동 수정
+                fix_pexpect_import()
+                
+                # 재시도
+                from xshell_integration.services import XShellService
+                print("✅ pexpect 문제 수정 후 서비스 import 성공")
+            else:
+                raise import_e
         
     except Exception as e:
         print(f"❌ 서비스 import 실패: {e}")
@@ -123,6 +139,56 @@ def check_and_fix_django():
     print()
     print("🎉 모든 Django 설정 체크 완료!")
     return True
+
+
+def fix_pexpect_import():
+    """pexpect import 문제 자동 수정"""
+    print("🔧 pexpect import 문제 수정 중...")
+    
+    services_file = "xshell_integration/services.py"
+    
+    try:
+        with open(services_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # pexpect import가 이미 조건부인지 확인
+        if "PEXPECT_AVAILABLE = True" in content:
+            print("   ✅ pexpect import가 이미 조건부 처리되어 있습니다")
+            return True
+        
+        # pexpect import를 조건부로 변경
+        old_import = """import paramiko
+import pexpect
+from pexpect import pxssh"""
+        
+        new_import = """import paramiko
+
+# Windows 호환성을 위한 조건부 import
+try:
+    import pexpect
+    from pexpect import pxssh
+    PEXPECT_AVAILABLE = True
+except ImportError:
+    # Windows 환경에서는 pexpect 사용 불가
+    PEXPECT_AVAILABLE = False
+    pexpect = None
+    pxssh = None"""
+        
+        if old_import in content:
+            content = content.replace(old_import, new_import)
+            
+            with open(services_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            print("   ✅ pexpect import를 조건부로 수정했습니다")
+            return True
+        else:
+            print("   ⚠️ 예상된 import 패턴을 찾을 수 없습니다")
+            return False
+            
+    except Exception as e:
+        print(f"   ❌ pexpect import 수정 실패: {e}")
+        return False
 
 
 def run_migrations():

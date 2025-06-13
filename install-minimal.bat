@@ -105,7 +105,7 @@ echo 🗄️ 데이터베이스 설정 중...
 
 :: 먼저 Django import 테스트
 echo    Django 모듈 import 테스트 중...
-python test-imports.py
+python test-pexpect-fix.py
 if %errorlevel% neq 0 (
     echo ❌ Django 모듈 import 테스트 실패
     echo.
@@ -115,15 +115,15 @@ if %errorlevel% neq 0 (
         echo ❌ 자동 수정 실패
         echo.
         echo 💡 수동 해결 방법:
-        echo    1. 모델 파일 문제: chatbot/models.py 확인
-        echo    2. 서비스 파일 문제: ai_backend/services.py, xshell_integration/services.py 확인
-        echo    3. 의존성 문제: pip list 확인
-        echo    4. Python 경로 문제: 가상환경 재활성화
+        echo    1. pexpect 문제: xshell_integration/services.py 확인
+        echo    2. 모델 파일 문제: chatbot/models.py 확인
+        echo    3. 서비스 파일 문제: ai_backend/services.py 확인
+        echo    4. 의존성 문제: pip list 확인
         echo.
         goto :django_error
     ) else (
         echo ✅ 자동 수정 완료, import 재테스트...
-        python test-imports.py
+        python test-pexpect-fix.py
         if %errorlevel% neq 0 (
             echo ❌ 수정 후에도 import 실패
             goto :django_error
@@ -163,9 +163,16 @@ if not exist logs (
 echo.
 echo 🎉 XShell AI 챗봇 최소 설치 완료!
 echo.
+echo ✅ 해결된 문제들:
+echo   • psycopg2-binary 컴파일 오류
+echo   • Pillow 컴파일 오류  
+echo   • pexpect 모듈 오류 (Windows 호환성)
+echo   • Django import 오류
+echo.
 echo 📋 다음 단계:
-echo   1. start.bat 실행하여 서버 시작
-echo   2. 또는 수동으로: python manage.py runserver
+echo   1. final-test.bat 실행하여 최종 확인
+echo   2. start.bat 실행하여 서버 시작
+echo   3. 또는 수동으로: python manage.py runserver
 echo.
 echo 🌐 브라우저에서 http://localhost:8000 접속
 echo.
@@ -215,6 +222,7 @@ echo   4. 자동 수정:     python fix-django.py
 echo   5. 수동 체크:     python manage.py check
 echo.
 echo 💡 일반적인 해결 방법:
+echo   • pexpect 오류: Windows 환경에서 정상 (자동 수정됨)
 echo   • Import 오류: Python 캐시 정리 후 재시도
 echo   • 모델 오류: 마이그레이션 파일 확인 및 재생성
 echo   • 의존성 오류: pip install -r requirements-minimal.txt
@@ -230,12 +238,14 @@ if /i "%TRY_AUTO_FIX%"=="y" (
     if %errorlevel% equ 0 (
         echo.
         echo 📋 재테스트 중...
-        python quick-test.py
+        python test-pexpect-fix.py
         if %errorlevel% equ 0 (
             echo ✅ 수정 완료! 설치를 계속합니다.
             goto :continue_install
         ) else (
             echo ❌ 재테스트 실패
+            echo.
+            echo 💡 final-test.bat을 실행해서 다시 확인해보세요.
         )
     ) else (
         echo ❌ 자동 수정 실패

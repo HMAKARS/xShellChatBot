@@ -1,5 +1,36 @@
 # 변경 사항 (Changelog)
 
+## [1.1.2] - 2025-06-13 (중요 핫픽스)
+
+### 🔧 pexpect 모듈 오류 완전 해결 ⭐
+- **pexpect import 오류 해결**: Unix/Linux 전용 모듈의 Windows 호환성 문제 완전 해결
+- **조건부 import 구현**: Windows에서는 pexpect 없이도 정상 작동
+- **자동 수정 기능**: `fix-django.py`에서 pexpect 문제 자동 감지 및 수정
+- **Windows SSH 대안**: Windows 환경에서 기본 SSH 클라이언트 사용
+
+### 🛠️ 업데이트된 진단 도구
+- `test-pexpect-fix.py` - pexpect 수정 후 전용 테스트
+- `fix-django.py` - pexpect 자동 수정 기능 추가
+- `install-minimal.bat` - pexpect 문제 포함한 완전 자동 설치
+
+### 📋 해결된 오류 메시지
+```
+❌ 서비스 import 실패: No module named 'pexpect'
+✅ Windows 환경에서 pexpect 없이 정상 작동
+```
+
+### 🚀 **즉시 해결 방법**
+```batch
+# 모든 pexpect 문제 자동 해결
+install-minimal.bat
+
+# 또는 수동 수정
+python fix-django.py
+python test-pexpect-fix.py
+```
+
+---
+
 ## [1.1.1] - 2025-06-13 (핫픽스)
 
 ### 🔧 Windows 설치 오류 완전 해결
