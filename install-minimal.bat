@@ -81,7 +81,6 @@ echo ✅ 핵심 패키지 설치 완료! (%INSTALL_COUNT%/%TOTAL_PACKAGES%)
 echo.
 
 :: 선택적 패키지 안내
-echo.
 echo 📋 선택적 패키지 ^(필요시 수동 설치^):
 echo    pip install channels-redis  ^# Redis WebSocket 지원
 echo    pip install whitenoise      ^# 정적 파일 서빙
@@ -104,40 +103,51 @@ if not exist .env (
 :: 데이터베이스 설정
 echo 🗄️ 데이터베이스 설정 중...
 
-:: 먼저 Django 설정 체크
-echo    Django 설정 체크 중...
-python fix-django.py --check-only 2>nul
+:: 먼저 Django import 테스트
+echo    Django 모듈 import 테스트 중...
+python test-imports.py
 if %errorlevel% neq 0 (
-    echo ⚠️ Django 설정에 문제가 감지되었습니다.
-    echo    자동 수정을 시도합니다...
+    echo ❌ Django 모듈 import 테스트 실패
+    echo.
+    echo 🔧 자동 수정을 시도합니다...
     python fix-django.py
     if %errorlevel% neq 0 (
-        echo ❌ Django 설정 수정 실패
+        echo ❌ 자동 수정 실패
         echo.
-        echo 🔧 수동 해결이 필요합니다:
-        echo    1. test-django.bat 실행하여 문제 확인
-        echo    2. python fix-django.py 실행
-        echo    3. python manage.py check 실행
+        echo 💡 수동 해결 방법:
+        echo    1. 모델 파일 문제: chatbot/models.py 확인
+        echo    2. 서비스 파일 문제: ai_backend/services.py, xshell_integration/services.py 확인
+        echo    3. 의존성 문제: pip list 확인
+        echo    4. Python 경로 문제: 가상환경 재활성화
         echo.
         goto :django_error
+    ) else (
+        echo ✅ 자동 수정 완료, import 재테스트...
+        python test-imports.py
+        if %errorlevel% neq 0 (
+            echo ❌ 수정 후에도 import 실패
+            goto :django_error
+        )
     )
 )
 
-echo    Django 기본 체크 완료
+echo    ✅ Django 모듈 import 성공
+
+echo    마이그레이션 생성 중...
 python manage.py makemigrations --verbosity=1
 if %errorlevel% neq 0 (
     echo ⚠️ 마이그레이션 생성 중 경고 발생 (정상적일 수 있음)
 )
 
+echo    데이터베이스 마이그레이션 실행 중...
 python manage.py migrate --verbosity=1
 if %errorlevel% neq 0 (
     echo ❌ 데이터베이스 마이그레이션 실패
     echo.
     echo 🔧 해결 방법:
-    echo    1. test-django.bat 실행하여 문제 진단
-    echo    2. python fix-django.py 실행하여 자동 수정
-    echo    3. 수동으로 python manage.py makemigrations
-    echo    4. 수동으로 python manage.py migrate
+    echo    1. 데이터베이스 파일 삭제 후 재시도: del db.sqlite3
+    echo    2. 마이그레이션 파일 삭제 후 재시도
+    echo    3. python manage.py check 로 문제 확인
     echo.
     goto :django_error
 )
@@ -164,56 +174,14 @@ echo   • FIX-WINDOWS-INSTALL.md 파일 참조
 echo   • 선택적 패키지 개별 설치
 echo.
 
-goto :django_error
-echo.
-echo ❌ Django 설정 오류 발생
-echo.
-echo 🛠️ 자동 진단 및 수정을 시도해보세요:
-echo.
-echo   1. 기본 진단:    test-django.bat
-echo   2. 자동 수정:    python fix-django.py  
-echo   3. 수동 체크:    python manage.py check
-echo.
-echo 💡 일반적인 해결 방법:
-echo   • URL 패턴 오류: views.py의 중복 함수 확인
-echo   • Import 오류: 모델/서비스 import 문제 확인  
-echo   • 의존성 문제: 누락된 패키지 설치
-echo.
-set /p TRY_FIX="자동 수정을 시도하시겠습니까? (y/N): "
-if /i "%TRY_FIX%"=="y" (
-    echo.
-    echo 🔧 자동 수정 시도 중...
-    python fix-django.py
-    if %errorlevel% equ 0 (
-        echo ✅ 수정 완료! 설치를 계속합니다.
-        goto :continue_install
-echo ✅ Django 설정 확인됨
-
-:success
-    ) else (
-        echo ❌ 자동 수정 실패
-    )
-)
-
-echo.
-echo 📞 추가 도움이 필요하면:
-echo   • FIX-WINDOWS-INSTALL.md 문서 참조
-echo   • GitHub Issues에 문의
-echo.
-pause
-exit /b 1
-
-:continue_install
-echo ✅ Django 설정 확인됨
-
-:success
+goto :success
 
 :install_package
 set /a INSTALL_COUNT+=1
 echo [%INSTALL_COUNT%/%TOTAL_PACKAGES%] %~2 설치 중...
 pip install %~1 --quiet --no-warn-script-location
 if %errorlevel% neq 0 (
-    echo ❌ %~1 설치 실패
+    echo ❌ %~1 설치 실패  
     set /a INSTALL_COUNT-=1
     echo    인터넷 연결을 확인하고 다시 시도해주세요.
     goto :install_error
@@ -238,28 +206,37 @@ exit /b 1
 echo.
 echo ❌ Django 설정 오류 발생
 echo.
-echo 🛠️ 자동 진단 및 수정을 시도해보세요:
+echo 🛠️ 단계별 해결 방법:
 echo.
-echo   1. 기본 진단:    test-django.bat
-echo   2. 자동 수정:    python fix-django.py  
-echo   3. 수동 체크:    python manage.py check
+echo   1. 캐시 정리:     clear-cache.bat
+echo   2. 빠른 테스트:   python quick-test.py
+echo   3. 자세한 진단:   python test-imports.py
+echo   4. 자동 수정:     python fix-django.py  
+echo   5. 수동 체크:     python manage.py check
 echo.
 echo 💡 일반적인 해결 방법:
-echo   • URL 패턴 오류: views.py의 중복 함수 확인
-echo   • Import 오류: 모델/서비스 import 문제 확인  
-echo   • 의존성 문제: 누락된 패키지 설치
+echo   • Import 오류: Python 캐시 정리 후 재시도
+echo   • 모델 오류: 마이그레이션 파일 확인 및 재생성
+echo   • 의존성 오류: pip install -r requirements-minimal.txt
 echo.
-set /p TRY_FIX="자동 수정을 시도하시겠습니까? (y/N): "
-if /i "%TRY_FIX%"=="y" (
+set /p TRY_AUTO_FIX="자동 수정을 시도하시겠습니까? (y/N): "
+if /i "%TRY_AUTO_FIX%"=="y" (
+    echo.
+    echo 🧹 먼저 캐시를 정리합니다...
+    call clear-cache.bat
     echo.
     echo 🔧 자동 수정 시도 중...
     python fix-django.py
     if %errorlevel% equ 0 (
-        echo ✅ 수정 완료! 설치를 계속합니다.
-        goto :continue_install
-echo ✅ Django 설정 확인됨
-
-:success
+        echo.
+        echo 📋 재테스트 중...
+        python quick-test.py
+        if %errorlevel% equ 0 (
+            echo ✅ 수정 완료! 설치를 계속합니다.
+            goto :continue_install
+        ) else (
+            echo ❌ 재테스트 실패
+        )
     ) else (
         echo ❌ 자동 수정 실패
     )
@@ -275,6 +252,13 @@ exit /b 1
 
 :continue_install
 echo ✅ Django 설정 확인됨
+echo    마이그레이션 재시도 중...
+python manage.py makemigrations --verbosity=1
+python manage.py migrate --verbosity=1
+if %errorlevel% neq 0 (
+    echo ⚠️ 마이그레이션 재시도 실패 - 수동으로 실행해주세요
+)
+goto :success
 
 :success
 echo 🚀 설치 완료! 이제 챗봇을 시작할 수 있습니다.
