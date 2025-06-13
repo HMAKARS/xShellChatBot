@@ -20,16 +20,23 @@ class OllamaClient:
         self.timeout = 30
     
     def generate(self, prompt: str, system_prompt: str = "", stream: bool = False) -> Dict[str, Any]:
-        """텍스트 생성"""
+        """텍스트 생성 - 안전한 오류 처리 포함"""
+        
+        # 입력 검증
+        if not prompt.strip():
+            raise Exception("빈 프롬프트는 처리할 수 없습니다")
+        
         payload = {
             "model": self.model,
-            "prompt": prompt,
+            "prompt": prompt.strip(),
             "system": system_prompt,
             "stream": stream,
             "options": {
                 "temperature": 0.7,
                 "top_p": 0.9,
-                "top_k": 40
+                "top_k": 40,
+                "num_predict": 500,  # 응답 길이 제한
+                "stop": ["\n\n\n"]  # 과도한 빈 줄 방지
             }
         }
         
@@ -39,25 +46,59 @@ class OllamaClient:
                 json=payload,
                 timeout=self.timeout
             )
-            response.raise_for_status()
+            
+            # 상태 코드별 구체적인 오류 처리
+            if response.status_code == 404:
+                raise Exception("Ollama generate API를 찾을 수 없습니다. Ollama 설치를 확인하세요.")
+            elif response.status_code == 500:
+                raise Exception(f"Ollama 내부 오류가 발생했습니다. 모델 '{self.model}'이 손상되었거나 메모리가 부족할 수 있습니다.")
+            elif response.status_code == 400:
+                raise Exception(f"잘못된 요청입니다. 모델 '{self.model}'이 존재하지 않을 수 있습니다.")
+            elif response.status_code != 200:
+                raise Exception(f"Ollama API 오류 (코드: {response.status_code}): {response.text}")
             
             if stream:
                 return response
             else:
-                return response.json()
+                result = response.json()
                 
+                # 응답 검증
+                if not result.get('response'):
+                    raise Exception("Ollama에서 빈 응답을 반환했습니다")
+                
+                return result
+                
+        except requests.Timeout:
+            raise Exception(f"Ollama 응답 시간 초과 ({self.timeout}초). 더 작은 모델을 사용하거나 시간 제한을 늘려보세요.")
+        except requests.ConnectionError:
+            raise Exception("Ollama 서비스에 연결할 수 없습니다. 'ollama serve' 명령어로 서비스를 시작하세요.")
         except requests.RequestException as e:
             logger.error(f"Ollama API 호출 실패: {e}")
-            raise Exception(f"AI 서비스에 연결할 수 없습니다: {e}")
+            raise Exception(f"AI 서비스 오류: {e}")
+        except json.JSONDecodeError:
+            raise Exception("Ollama에서 잘못된 응답 형식을 반환했습니다")
+        except Exception as e:
+            if "AI 서비스" in str(e) or "Ollama" in str(e):
+                raise e
+            else:
+                raise Exception(f"예상치 못한 오류가 발생했습니다: {e}")
     
     def chat(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
         """채팅 형식 생성 - /api/chat 또는 /api/generate 사용"""
         
-        # 먼저 /api/chat 시도 (최신 버전)
+        # 입력 검증
+        if not messages or not isinstance(messages, list):
+            raise Exception("유효한 메시지 목록이 필요합니다")
+        
+        # 첫 번째 시도: /api/chat (최신 버전)
         chat_payload = {
             "model": self.model,
             "messages": messages,
-            "stream": False
+            "stream": False,
+            "options": {
+                "temperature": 0.7,
+                "num_predict": 500
+            }
         }
         
         try:
@@ -66,17 +107,39 @@ class OllamaClient:
                 json=chat_payload,
                 timeout=self.timeout
             )
+            
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                # 응답 형식 검증
+                if result.get('message', {}).get('content'):
+                    return result
+                else:
+                    logger.warning("Chat API에서 빈 응답 반환, generate로 폴백")
+                    return self._fallback_to_generate(messages)
+                    
             elif response.status_code == 404:
                 # /api/chat이 없으면 /api/generate로 폴백
                 logger.info("Ollama /api/chat 엔드포인트가 없음, /api/generate 사용")
                 return self._fallback_to_generate(messages)
-            else:
-                response.raise_for_status()
                 
+            elif response.status_code == 500:
+                logger.warning("Chat API 500 오류, generate로 폴백 시도")
+                return self._fallback_to_generate(messages)
+                
+            else:
+                # 다른 오류는 즉시 발생
+                if response.status_code == 400:
+                    raise Exception(f"잘못된 채팅 요청입니다. 모델 '{self.model}'을 확인하세요.")
+                else:
+                    raise Exception(f"Chat API 오류 (코드: {response.status_code}): {response.text}")
+                
+        except requests.Timeout:
+            logger.warning("Chat API 시간 초과, generate로 폴백")
+            return self._fallback_to_generate(messages)
+        except requests.ConnectionError:
+            raise Exception("Ollama 서비스에 연결할 수 없습니다. 'ollama serve' 명령어로 서비스를 시작하세요.")
         except requests.RequestException as e:
-            logger.warning(f"Ollama Chat API 실패, generate로 폴백: {e}")
+            logger.warning(f"Chat API 실패, generate로 폴백: {e}")
             return self._fallback_to_generate(messages)
     
     def _fallback_to_generate(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -87,12 +150,18 @@ class OllamaClient:
         user_prompt = ""
         
         for msg in messages:
-            if msg.get('role') == 'system':
-                system_prompt = msg.get('content', '')
-            elif msg.get('role') == 'user':
-                user_prompt += msg.get('content', '') + "\n"
-            elif msg.get('role') == 'assistant':
-                user_prompt += f"Assistant: {msg.get('content', '')}\n"
+            role = msg.get('role', '')
+            content = msg.get('content', '')
+            
+            if role == 'system':
+                system_prompt = content
+            elif role == 'user':
+                if user_prompt:
+                    user_prompt += f"\n사용자: {content}"
+                else:
+                    user_prompt = content
+            elif role == 'assistant':
+                user_prompt += f"\n도우미: {content}"
         
         # generate API 호출
         try:
@@ -106,12 +175,21 @@ class OllamaClient:
                 },
                 "model": self.model,
                 "created_at": result.get("created_at"),
-                "done": result.get("done", True)
+                "done": result.get("done", True),
+                "fallback_used": True  # 폴백 사용 표시
             }
             
         except Exception as e:
-            logger.error(f"Ollama Generate API도 실패: {e}")
-            raise Exception(f"AI 서비스에 연결할 수 없습니다: {e}")
+            logger.error(f"Generate API도 실패: {e}")
+            # 더 구체적인 오류 메시지
+            if "500" in str(e):
+                raise Exception("AI 모델에 문제가 있습니다. fix-ollama-500.bat을 실행하거나 시스템을 재시작해보세요.")
+            elif "404" in str(e):
+                raise Exception("Ollama API를 찾을 수 없습니다. Ollama가 올바르게 설치되었는지 확인하세요.")
+            elif "연결" in str(e):
+                raise Exception("Ollama 서비스가 실행되지 않습니다. 'ollama serve' 명령어로 시작하세요.")
+            else:
+                raise Exception(f"AI 서비스 오류: {e}")
     
     def is_available(self) -> bool:
         """Ollama 서비스 사용 가능 여부 확인"""
@@ -126,17 +204,65 @@ class AIService:
     """AI 서비스 메인 클래스"""
     
     def __init__(self):
-        # Ollama 연결 상태 확인
+        # Ollama 연결 상태 확인 (더 안전하게)
+        self.ollama_available = False
+        self.error_message = ""
+        
         try:
-            response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=2)
-            if response.status_code == 200:
+            # 1. 기본 연결 확인
+            response = requests.get(f"{settings.OLLAMA_BASE_URL}/", timeout=3)
+            if response.status_code != 200:
+                self.error_message = f"Ollama 서비스 응답 오류: {response.status_code}"
+                return
+            
+            # 2. API 엔드포인트 확인
+            response = requests.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=5)
+            if response.status_code != 200:
+                self.error_message = f"Ollama API 오류: {response.status_code}"
+                return
+            
+            # 3. 모델 확인
+            models = response.json().get('models', [])
+            if not models:
+                self.error_message = "사용 가능한 모델이 없습니다"
+                return
+            
+            # 4. 클라이언트 초기화
+            self.ollama_client = OllamaClient()
+            self.code_client = OllamaClient(model=settings.CODE_AI_MODEL)
+            
+            # 5. 간단한 동작 테스트
+            test_result = self._test_basic_functionality()
+            if test_result:
                 self.ollama_available = True
-                self.ollama_client = OllamaClient()
-                self.code_client = OllamaClient(model=settings.CODE_AI_MODEL)
             else:
-                self.ollama_available = False
+                self.error_message = "Ollama 기능 테스트 실패"
+                
+        except requests.RequestException as e:
+            self.error_message = f"Ollama 연결 실패: {e}"
+        except Exception as e:
+            self.error_message = f"Ollama 초기화 오류: {e}"
+    
+    def _test_basic_functionality(self):
+        """기본 기능 테스트"""
+        try:
+            # 가장 간단한 요청으로 테스트
+            response = requests.post(
+                f"{settings.OLLAMA_BASE_URL}/api/generate",
+                json={
+                    "model": settings.DEFAULT_AI_MODEL,
+                    "prompt": "Hi",
+                    "stream": False,
+                    "options": {
+                        "num_predict": 3,  # 매우 짧은 응답
+                        "temperature": 0.1
+                    }
+                },
+                timeout=10
+            )
+            return response.status_code == 200
         except:
-            self.ollama_available = False
+            return False
         
     def process_message(self, message: str, session_id: str, message_type: str = 'user', context: Dict = None) -> Dict[str, Any]:
         """메시지 처리 및 적절한 AI 응답 생성"""
@@ -544,22 +670,34 @@ class AIService:
         user_context = user_context or {}
         shell_type = user_context.get('shell_type')
         
-        # Ollama가 사용 불가능한 경우 기본 응답
+        # Ollama가 사용 불가능한 경우 상세한 안내
         if not self.ollama_available:
+            error_details = self.error_message or "알 수 없는 오류"
+            
             return {
-                'content': f"죄송합니다. 현재 AI 서비스(Ollama)에 연결할 수 없습니다.\n\n"
-                          f"**AI 기능을 사용하려면:**\n"
-                          f"1. https://ollama.ai/download 에서 Ollama를 설치하세요\n"
-                          f"2. 설치 후 `ollama pull llama3.2:3b` 명령어로 모델을 다운로드하세요\n"
-                          f"3. 서비스가 자동으로 시작됩니다\n\n"
+                'content': f"💔 **AI 서비스 연결 오류**\n\n"
+                          f"**오류 내용:** {error_details}\n\n"
+                          f"**해결 방법:**\n\n"
+                          f"🔧 **즉시 해결**\n"
+                          f"1. `fix-ollama-500.bat` 실행 (자동 진단 및 수정)\n"
+                          f"2. 또는 `test-ollama.bat` 실행 (상세 진단)\n\n"
+                          f"🚀 **수동 해결**\n"
+                          f"1. Ollama 재시작: `ollama serve`\n"
+                          f"2. 모델 설치: `ollama pull llama3.2:3b`\n"
+                          f"3. 시스템 재시작 (권장)\n\n"
+                          f"📥 **Ollama 설치가 필요한 경우**\n"
+                          f"• 자동 설치: `install-ollama-simple.bat`\n"
+                          f"• 수동 설치: https://ollama.com/download\n\n"
                           f"**현재 사용 가능한 기능:**\n"
-                          f"- XShell 세션 연결 및 명령어 실행\n"
-                          f"- 터미널 작업 지원\n\n"
-                          f"무엇을 도와드릴까요?",
+                          f"• XShell 세션 연결 및 명령어 실행\n"
+                          f"• 터미널 작업 지원\n\n"
+                          f"AI 기능이 복구되면 지능적인 대화와 코드 분석을 이용할 수 있습니다! 🤖",
                 'metadata': {
-                    'type': 'ai_unavailable',
+                    'type': 'ai_service_error',
+                    'error_details': error_details,
                     'shell_type': shell_type,
-                    'capabilities': ['command_execution', 'xshell_integration']
+                    'capabilities': ['command_execution', 'xshell_integration'],
+                    'repair_tools': ['fix-ollama-500.bat', 'test-ollama.bat', 'install-ollama-simple.bat']
                 }
             }
         
@@ -585,9 +723,41 @@ class AIService:
                 }
             }
         except Exception as e:
+            # 구체적인 오류 분석
+            error_str = str(e)
+            if "500" in error_str:
+                repair_message = "🔧 **Ollama 500 오류 해결 방법:**\n" \
+                               "1. `fix-ollama-500.bat` 실행 (자동 수정)\n" \
+                               "2. 시스템 재시작 후 재시도\n" \
+                               "3. 더 작은 모델 사용: `ollama pull llama3.2:1b`"
+            elif "404" in error_str:
+                repair_message = "🔧 **API 엔드포인트 오류:**\n" \
+                               "Ollama 버전이 낮을 수 있습니다. 최신 버전으로 업데이트하세요."
+            elif "timeout" in error_str.lower():
+                repair_message = "⏱️ **응답 시간 초과:**\n" \
+                                "모델이 너무 크거나 메모리가 부족할 수 있습니다.\n" \
+                                "더 작은 모델을 사용해보세요."
+            elif "connection" in error_str.lower():
+                repair_message = "🔌 **연결 오류:**\n" \
+                                "`ollama serve` 명령어로 서비스를 시작하세요."
+            else:
+                repair_message = "🛠️ **일반적인 해결 방법:**\n" \
+                                "1. `fix-ollama-500.bat` 실행\n" \
+                                "2. Ollama 서비스 재시작\n" \
+                                "3. 시스템 재시작"
+            
             return {
-                'content': f"대화 처리 중 오류가 발생했습니다: {str(e)}",
-                'metadata': {'type': 'error'}
+                'content': f"😅 **AI 응답 생성 중 오류가 발생했습니다**\n\n"
+                          f"**오류 내용:** {error_str}\n\n"
+                          f"{repair_message}\n\n"
+                          f"**임시 해결책:**\n"
+                          f"XShell 기능(명령어 실행, 터미널 작업)은 정상적으로 사용 가능합니다.\n"
+                          f"AI 기능이 복구되면 더 스마트한 도움을 받을 수 있습니다! 🚀",
+                'metadata': {
+                    'type': 'ai_error',
+                    'error_details': error_str,
+                    'shell_type': shell_type
+                }
             }
     
     def handle_default(self, message: str, context: List[Dict], user_context: Dict = None) -> Dict[str, Any]:
