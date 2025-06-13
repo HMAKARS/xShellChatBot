@@ -51,8 +51,10 @@ class OllamaClient:
             raise Exception(f"AI 서비스에 연결할 수 없습니다: {e}")
     
     def chat(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
-        """채팅 형식 생성"""
-        payload = {
+        """채팅 형식 생성 - /api/chat 또는 /api/generate 사용"""
+        
+        # 먼저 /api/chat 시도 (최신 버전)
+        chat_payload = {
             "model": self.model,
             "messages": messages,
             "stream": False
@@ -61,14 +63,54 @@ class OllamaClient:
         try:
             response = requests.post(
                 f"{self.base_url}/api/chat",
-                json=payload,
+                json=chat_payload,
                 timeout=self.timeout
             )
-            response.raise_for_status()
-            return response.json()
-            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 404:
+                # /api/chat이 없으면 /api/generate로 폴백
+                logger.info("Ollama /api/chat 엔드포인트가 없음, /api/generate 사용")
+                return self._fallback_to_generate(messages)
+            else:
+                response.raise_for_status()
+                
         except requests.RequestException as e:
-            logger.error(f"Ollama Chat API 호출 실패: {e}")
+            logger.warning(f"Ollama Chat API 실패, generate로 폴백: {e}")
+            return self._fallback_to_generate(messages)
+    
+    def _fallback_to_generate(self, messages: List[Dict[str, str]]) -> Dict[str, Any]:
+        """chat API 실패시 generate API로 폴백"""
+        
+        # 메시지들을 하나의 프롬프트로 변환
+        system_prompt = ""
+        user_prompt = ""
+        
+        for msg in messages:
+            if msg.get('role') == 'system':
+                system_prompt = msg.get('content', '')
+            elif msg.get('role') == 'user':
+                user_prompt += msg.get('content', '') + "\n"
+            elif msg.get('role') == 'assistant':
+                user_prompt += f"Assistant: {msg.get('content', '')}\n"
+        
+        # generate API 호출
+        try:
+            result = self.generate(user_prompt.strip(), system_prompt)
+            
+            # chat API 형식으로 응답 변환
+            return {
+                "message": {
+                    "role": "assistant",
+                    "content": result.get("response", "응답을 생성할 수 없습니다.")
+                },
+                "model": self.model,
+                "created_at": result.get("created_at"),
+                "done": result.get("done", True)
+            }
+            
+        except Exception as e:
+            logger.error(f"Ollama Generate API도 실패: {e}")
             raise Exception(f"AI 서비스에 연결할 수 없습니다: {e}")
     
     def is_available(self) -> bool:
