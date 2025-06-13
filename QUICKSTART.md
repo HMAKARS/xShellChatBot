@@ -1,242 +1,332 @@
-# 🚀 XShell AI 챗봇 빠른 시작 가이드
-
-## 📋 사전 준비사항
-
-- Python 3.8+
-- Redis Server (WebSocket 기능용, 선택사항)
-- Ollama (AI 기능용)
-
-## ⚡ Windows에서 30초 만에 시작하기
-
-### 방법 1: 배치 파일 (가장 간단) ⭐
-```batch
-# start.bat 더블클릭하거나 명령어로 실행
-start.bat
-```
-
-### 방법 2: PowerShell
-```powershell
-# PowerShell 관리자 모드로 실행
-.\start.ps1
-
-# 또는 특정 옵션과 함께
-.\start.ps1 -Action start -ShellType powershell
-```
-
-### 방법 3: 수동 설정
-```batch
-# 1. 가상환경 생성
-python -m venv .venv
-.venv\Scripts\activate
-
-# 2. 의존성 설치
-pip install -r requirements.txt
-
-# 3. 데이터베이스 설정
-python manage.py makemigrations
-python manage.py migrate
-
-# 4. 서버 실행
-python manage.py runserver
-```
-
-## ⚡ Linux/macOS에서 시작하기
-
-### 1. 자동 설정 실행
-
-```bash
-python setup.py
-```
-
-### 2. 가상환경 활성화
-
-```bash
-source .venv/bin/activate
-```
-
-### 3. 의존성 설치
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. 데이터베이스 설정
-
-```bash
-python manage.py makemigrations
-python manage.py migrate
-python manage.py createsuperuser
-```
-
-### 5. AI 모델 설치
-
-```bash
-# Ollama 모델 설치
-ollama pull llama3.1:8b
-ollama pull codellama:7b
-
-# 모델 상태 확인
-python manage.py check_ai_models
-```
-
-### 6. 서버 실행
-
-```bash
-# 간편 실행
-python start_server.py
-
-# 또는 수동 실행
-python manage.py runserver
-```
-
-### 7. 접속
-
-브라우저에서 `http://localhost:8000`에 접속하세요.
-
-## 🐳 Docker로 실행하기
-
-```bash
-# 실행 권한 부여 (Linux/macOS)
-chmod +x deploy/deploy.sh
-
-# 배포 실행
-./deploy/deploy.sh
-```
-
-## 🔧 주요 관리 명령어
-
-### AI 모델 관리
-```bash
-# 모델 상태 확인
-python manage.py check_ai_models
-
-# 권장 모델 자동 설치
-python manage.py check_ai_models --install
-```
-
-### XShell 세션 관리
-```bash
-# 세션 목록 조회
-python manage.py manage_xshell_sessions --list
-
-# 새 세션 추가
-python manage.py manage_xshell_sessions --add
-
-# 세션 연결 테스트
-python manage.py manage_xshell_sessions --test "세션이름"
-```
-
-### 테스트 실행
-```bash
-python manage.py test
-```
-
-## 📖 기본 사용법
-
-### 1. 새 채팅 세션 생성
-- 사이드바에서 "새 채팅" 버튼 클릭
-
-### 2. 명령어 실행 (OS별 자동 감지)
-
-#### Windows 예시
-```
-사용자: "현재 폴더의 파일 목록을 보여줘"
-AI: dir 명령어를 실행하겠습니다. [실행 버튼]
-
-사용자: "실행 중인 프로세스 확인해줘"  
-AI: Get-Process 명령어를 실행하겠습니다. [실행 버튼]
-
-사용자: "시스템 정보 알려줘"
-AI: systeminfo 명령어를 실행하겠습니다. [실행 버튼]
-```
-
-#### Linux/macOS 예시
-```
-사용자: "현재 디렉토리의 파일 목록을 보여줘"
-AI: ls -la 명령어를 실행하겠습니다. [실행 버튼]
-
-사용자: "실행 중인 프로세스 확인해줘"
-AI: ps aux 명령어를 실행하겠습니다. [실행 버튼]
-
-사용자: "디스크 사용량 확인해줘"
-AI: df -h 명령어를 실행하겠습니다. [실행 버튼]
-```
-
-### 3. 코드 분석
-```
-사용자: "이 오류를 분석해줘: ImportError: No module named 'django'"
-AI: Django가 설치되지 않은 것 같습니다...
-```
-
-### 4. 시스템 관리
-```
-사용자: "메모리 사용량 확인하는 방법은?"
-AI: Windows: Get-WmiObject Win32_OperatingSystem | Select TotalVirtualMemorySize
-    Linux: free -h 명령어로 메모리 사용량을 확인할 수 있습니다...
-```
-
-## ⚙️ 설정 변경
-
-### .env 파일 수정
-```env
-# AI 모델 변경
-DEFAULT_AI_MODEL=llama3.1:8b
-CODE_AI_MODEL=codellama:7b
-
-# XShell 경로 설정
-XSHELL_PATH=C:\Program Files\NetSarang\Xshell 8\Xshell.exe
-
-# Ollama 서버 주소
-OLLAMA_BASE_URL=http://localhost:11434
-```
-
-### XShell 세션 추가
-1. 관리자 페이지 (`/admin`) 접속
-2. "XShell Sessions" 메뉴 선택
-3. "Add" 버튼으로 새 세션 추가
-
-## 🚨 문제 해결
-
-### Ollama 연결 실패
-```bash
-# Ollama 서비스 확인
-curl http://localhost:11434/api/tags
-
-# Ollama 재시작
-ollama serve
-```
-
-### Redis 연결 실패
-```bash
-# Redis 서비스 확인
-redis-cli ping
-
-# Redis 재시작 (Ubuntu)
-sudo systemctl restart redis
-```
-
-### 권한 오류
-```bash
-# 로그 디렉토리 권한 설정
-chmod 755 logs/
-
-# SQLite 파일 권한 설정
-chmod 664 db.sqlite3
-```
-
-## 📚 더 자세한 정보
-
-- [전체 README](README.md)
-- [API 문서](docs/api.md)
-- [배포 가이드](docs/deployment.md)
-- [문제 해결](docs/troubleshooting.md)
-
-## 🆘 도움이 필요하신가요?
-
-- GitHub Issues: 버그 신고 및 기능 요청
-- Discord: 실시간 커뮤니티 지원
-- 이메일: support@example.com
-
----
-
-**🎉 이제 XShell AI 챗봇을 사용할 준비가 되었습니다!**
+@echo off
+:: XShell AI 챗봇 Windows 설치 스크립트
+setlocal enabledelayedexpansion
+
+:: 색상 및 유니코드 지원
+chcp 65001 >nul
+cls
+
+echo.
+echo 📦 XShell AI 챗봇 Windows 설치 스크립트
+echo =============================================
+echo.
+echo 이 스크립트는 다음을 설치합니다:
+echo   • Python 가상환경
+echo   • Django 웹 프레임워크
+echo   • WebSocket 지원 (실시간 채팅)
+echo   • 데이터베이스 설정
+echo   • 기본 설정 파일
+echo.
+
+set /p CONTINUE="설치를 시작하시겠습니까? (Y/n): "
+if /i "%CONTINUE%"=="n" goto :user_exit
+
+:: Python 버전 확인
+echo 🔍 Python 확인 중...
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ❌ Python이 설치되지 않았거나 PATH에 없습니다.
+    echo.
+    echo 📥 Python 설치가 필요합니다:
+    echo    1. https://python.org/downloads/ 방문
+    echo    2. Python 3.8 이상 다운로드
+    echo    3. 설치 시 "Add Python to PATH" 체크 필수
+    echo.
+    echo 🔗 Python 다운로드 페이지를 열겠습니다...
+    start https://python.org/downloads/
+    pause
+    exit /b 1
+)
+
+for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
+echo ✅ Python %PYTHON_VERSION% 확인됨
+
+:: pip 업그레이드
+echo 📈 pip 업그레이드 중...
+python -m pip install --upgrade pip --quiet
+echo ✅ pip 업그레이드 완료
+
+:: 가상환경 생성
+echo 📦 가상환경 확인 중...
+if not exist .venv (
+    echo 🔨 가상환경 생성 중...
+    python -m venv .venv
+    if %errorlevel% neq 0 (
+        echo ❌ 가상환경 생성 실패
+        pause
+        exit /b 1
+    )
+    echo ✅ 가상환경 생성 완료
+) else (
+    echo ✅ 가상환경이 이미 존재합니다
+)
+
+:: 가상환경 활성화
+echo 🔄 가상환경 활성화 중...
+call .venv\Scripts\activate.bat
+if %errorlevel% neq 0 (
+    echo ❌ 가상환경 활성화 실패
+    pause
+    exit /b 1
+)
+echo ✅ 가상환경 활성화 완료
+
+:: 핵심 패키지 설치
+echo 📚 핵심 패키지 설치 중...
+echo.
+
+echo [1/7] Django 웹 프레임워크...
+pip install Django==4.2.7 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ Django 설치 실패
+    goto :install_error
+)
+echo ✅ Django 설치 완료
+
+echo [2/7] CORS 헤더 지원...
+pip install django-cors-headers==4.3.1 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ CORS 헤더 설치 실패
+    goto :install_error
+)
+echo ✅ CORS 헤더 설치 완료
+
+echo [3/7] WebSocket 지원...
+pip install channels==4.0.0 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ WebSocket 설치 실패
+    goto :install_error
+)
+echo ✅ WebSocket 설치 완료
+
+echo [4/7] HTTP 클라이언트...
+pip install requests==2.31.0 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ HTTP 클라이언트 설치 실패
+    goto :install_error
+)
+echo ✅ HTTP 클라이언트 설치 완료
+
+echo [5/7] 환경 설정 지원...
+pip install python-dotenv==1.0.0 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ 환경 설정 설치 실패
+    goto :install_error
+)
+echo ✅ 환경 설정 설치 완료
+
+echo [6/7] ASGI 서버...
+pip install daphne==4.0.0 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ ASGI 서버 설치 실패
+    goto :install_error
+)
+echo ✅ ASGI 서버 설치 완료
+
+echo [7/7] SSH 연결 지원...
+pip install paramiko==3.3.1 --quiet
+if %errorlevel% neq 0 (
+    echo ❌ SSH 연결 설치 실패
+    goto :install_error
+)
+echo ✅ SSH 연결 설치 완료
+
+echo.
+echo 📄 환경 설정 파일 생성 중...
+if not exist .env (
+    if exist .env.example (
+        copy .env.example .env >nul
+        echo ✅ .env 파일 생성 완료
+    ) else (
+        echo ⚠️ .env.example이 없어서 기본 .env 파일을 생성합니다
+        echo SECRET_KEY=django-insecure-dev-key-change-in-production > .env
+        echo DEBUG=True >> .env
+        echo OLLAMA_BASE_URL=http://localhost:11434 >> .env
+        echo DEFAULT_AI_MODEL=llama3.2:3b >> .env
+        echo ✅ 기본 .env 파일 생성 완료
+    )
+) else (
+    echo ✅ .env 파일이 이미 존재합니다
+)
+
+:: 데이터베이스 설정
+echo 🗄️ 데이터베이스 설정 중...
+python manage.py makemigrations --verbosity=0 >nul 2>&1
+python manage.py migrate --verbosity=0
+if %errorlevel% neq 0 (
+    echo ❌ 데이터베이스 설정 실패
+    goto :install_error
+)
+echo ✅ 데이터베이스 설정 완료
+
+:: 로그 디렉토리 생성
+echo 📂 로그 디렉토리 생성 중...
+if not exist logs (
+    mkdir logs
+)
+echo ✅ 로그 디렉토리 준비 완료
+
+:: 정적 파일 디렉토리 생성
+echo 📁 정적 파일 디렉토리 확인 중...
+if not exist static (
+    mkdir static
+)
+if not exist templates (
+    mkdir templates
+)
+echo ✅ 필요한 디렉토리 준비 완료
+
+:: AI 기능 설정 (선택사항)
+echo.
+echo 🤖 AI 기능 설정 (선택사항)
+echo ==============================
+echo AI 기능을 위해 Ollama가 필요합니다.
+echo Ollama 없이도 기본 XShell 기능은 사용할 수 있습니다.
+echo.
+
+set /p SETUP_AI="AI 기능을 설정하시겠습니까? (Y/n): "
+if /i "%SETUP_AI%"=="n" goto :skip_ai
+
+:: Ollama 확인
+echo 🔍 Ollama 확인 중...
+ollama --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ❌ Ollama가 설치되지 않았습니다.
+    echo.
+    echo 📥 Ollama 설치 옵션:
+    echo   1. 자동 설치 (install-ollama-simple.bat)
+    echo   2. 수동 설치 (https://ollama.com/download)
+    echo   3. 나중에 설치
+    echo.
+    set /p OLLAMA_CHOICE="선택하세요 (1-3): "
+    
+    if "%OLLAMA_CHOICE%"=="1" (
+        if exist install-ollama-simple.bat (
+            echo 🚀 자동 설치 시작...
+            call install-ollama-simple.bat
+        ) else (
+            echo ❌ 설치 스크립트를 찾을 수 없습니다
+            goto :manual_ollama
+        )
+    ) else if "%OLLAMA_CHOICE%"=="2" (
+        goto :manual_ollama
+    ) else (
+        goto :skip_ai
+    )
+) else (
+    echo ✅ Ollama 확인됨
+    
+    :: 모델 확인
+    echo 🔍 AI 모델 확인 중...
+    ollama list | findstr "llama" >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo ⚠️ AI 모델이 설치되지 않았습니다.
+        echo.
+        echo 📥 권장 모델 (6GB RAM 시스템 최적화):
+        echo   1. llama3.2:3b (2GB, 균형잡힌 성능)
+        echo   2. llama3.2:1b (1GB, 빠른 속도)
+        echo   3. 건너뛰기
+        echo.
+        set /p MODEL_CHOICE="선택하세요 (1-3): "
+        
+        if "%MODEL_CHOICE%"=="1" (
+            echo 📥 llama3.2:3b 설치 중... (약 2GB)
+            ollama pull llama3.2:3b
+            echo ✅ AI 모델 설치 완료
+        ) else if "%MODEL_CHOICE%"=="2" (
+            echo 📥 llama3.2:1b 설치 중... (약 1GB)
+            ollama pull llama3.2:1b
+            echo ✅ AI 모델 설치 완료
+        )
+    ) else (
+        echo ✅ AI 모델이 이미 설치되어 있습니다
+    )
+)
+
+goto :ai_complete
+
+:manual_ollama
+echo 🔗 Ollama 다운로드 페이지를 열겠습니다...
+start https://ollama.com/download
+echo.
+echo 💡 설치 후 다음 명령어로 모델을 설치하세요:
+echo    ollama pull llama3.2:3b
+echo.
+
+goto :ai_complete
+
+:skip_ai
+echo ✅ AI 기능 설정을 건너뜁니다
+echo   나중에 install-ollama-simple.bat으로 설치할 수 있습니다
+
+:ai_complete
+
+:: 설치 완료
+echo.
+echo 🎉 설치 완료!
+echo =================
+echo.
+echo ✅ 설치된 구성 요소:
+echo   • Python 가상환경
+echo   • Django 웹 프레임워크
+echo   • WebSocket 지원 (실시간 채팅)
+echo   • 데이터베이스 (SQLite)
+echo   • ASGI 서버 (Daphne)
+echo   • 환경 설정 (.env)
+echo   • 로그 시스템
+if /i "%SETUP_AI%" neq "n" (
+    echo   • AI 기능 (Ollama)
+)
+echo.
+echo 🚀 다음 단계:
+echo   • 서버 시작: start.bat 또는 run-daphne.bat
+echo   • 브라우저에서 http://localhost:8000 접속
+echo.
+echo 💡 유용한 명령어:
+echo   • 서버 시작: start.bat
+echo   • AI 기능 설치: install-ollama-simple.bat
+echo   • AI 상태 확인: check-ollama-quick.bat
+echo.
+
+set /p START_NOW="지금 바로 서버를 시작하시겠습니까? (Y/n): "
+if /i "%START_NOW%" neq "n" (
+    echo.
+    echo 🚀 서버를 시작합니다...
+    if exist start.bat (
+        call start.bat
+    ) else if exist run-daphne.bat (
+        call run-daphne.bat
+    ) else (
+        echo 기본 서버로 시작합니다...
+        python manage.py runserver
+    )
+)
+
+goto :end
+
+:install_error
+echo.
+echo ❌ 설치 중 오류가 발생했습니다.
+echo.
+echo 🔧 해결 방법:
+echo   1. 인터넷 연결 상태 확인
+echo   2. 관리자 권한으로 실행
+echo   3. 바이러스 백신 일시 비활성화
+echo   4. Python PATH 설정 확인
+echo.
+echo 💡 수동 설치:
+echo   pip install Django channels requests python-dotenv daphne
+echo.
+goto :end
+
+:user_exit
+echo.
+echo 👋 설치를 취소했습니다.
+echo    나중에 install-minimal.bat을 다시 실행하세요.
+echo.
+
+:end
+echo.
+echo 아무 키나 누르면 종료됩니다...
+pause >nul
+exit /b 0

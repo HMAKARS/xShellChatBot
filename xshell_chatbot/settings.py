@@ -143,10 +143,10 @@ CHANNEL_LAYERS = {
 XSHELL_PATH = os.getenv('XSHELL_PATH', r'C:\Program Files\NetSarang\Xshell 8\Xshell.exe')
 XSHELL_SESSIONS_PATH = os.getenv('XSHELL_SESSIONS_PATH', r'C:\Users\{username}\Documents\NetSarang Computer\8\Xshell\Sessions')
 
-# AI Backend Settings - 메모리 최적화 (6GB RAM 시스템용)
+# AI Backend Settings - 32GB RAM 고성능 설정
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
-DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'llama3.2:3b')  # 메모리 최적화: 2GB (이전: llama3.1:8b - 6.1GB)
-CODE_AI_MODEL = os.getenv('CODE_AI_MODEL', 'llama3.2:3b')        # 코드 분석도 경량 모델 사용
+DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'llama3.1:8b')  # 고성능: 4.7GB (32GB RAM용)
+CODE_AI_MODEL = os.getenv('CODE_AI_MODEL', 'codellama:13b')      # 코드 전문: 7GB
 
 # Logging
 LOGGING = {
