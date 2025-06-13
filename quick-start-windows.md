@@ -2,12 +2,18 @@
 
 ## 💫 가장 빠른 방법 (30초)
 
-### 1. 더블클릭으로 시작
+### 1. 최소 설치로 시작 (가장 안전) ⭐
+```batch
+# 컴파일 오류 없이 핵심 기능만 설치
+install-minimal.bat
+```
+
+### 2. 더블클릭으로 시작
 1. `start.bat` 파일을 더블클릭
 2. 자동으로 모든 설정이 완료됩니다
 3. 브라우저가 자동으로 열립니다
 
-### 2. PowerShell로 시작
+### 3. PowerShell로 시작
 ```powershell
 # PowerShell을 관리자로 실행하고
 .\start.ps1
@@ -106,6 +112,29 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
 ```
 
 ## 🚨 문제 해결
+
+### 설치/컴파일 오류 발생시
+
+#### 1. psycopg2-binary 오류
+```powershell
+# 최소 설치 스크립트 사용
+install-minimal.bat
+```
+
+#### 2. Pillow 컴파일 오류
+```powershell
+# 최소 패키지로 설치 (이미지 처리 제외)
+pip install -r requirements-minimal.txt
+```
+
+#### 3. 일반적인 컴파일 오류
+```powershell
+# 개별 패키지 설치
+pip install Django==4.2.7
+pip install channels==4.0.0
+pip install requests==2.31.0
+pip install python-dotenv==1.0.0
+```
 
 ### PowerShell 스크립트 실행 오류
 ```powershell

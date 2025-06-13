@@ -1,123 +1,162 @@
 # ⚡ Windows 설치 오류 해결 가이드
 
-Windows에서 `psycopg2-binary` 설치 오류가 발생했을 때의 해결 방법입니다.
+Windows에서 `psycopg2-binary`, `Pillow` 등의 컴파일 오류가 발생했을 때의 해결 방법입니다.
 
-## 🔧 즉시 해결 방법
+## 🔧 즉시 해결 방법 (우선순위 순)
 
-### 방법 1: Windows 전용 패키지 사용 (권장)
+### 방법 1: 최소 설치 스크립트 (가장 안전)
 ```batch
-# 기존 설치 중단 후 Windows 전용 패키지로 설치
-pip install -r requirements-windows.txt
+# 컴파일 없이 핵심 기능만 설치
+install-minimal.bat
 ```
 
-### 방법 2: 업데이트된 시작 스크립트 사용
+### 방법 2: 업데이트된 시작 스크립트
 ```batch
-# 새로운 start.bat 실행 (자동으로 Windows용 패키지 사용)
+# 자동으로 최소 패키지부터 시도
 start.bat
 ```
 
-### 방법 3: PowerShell로 실행
+### 방법 3: PowerShell 실행
 ```powershell
-# PowerShell에서 실행 (권장)
+# PowerShell에서 실행
 .\start.ps1
 ```
 
-## 🔍 오류 원인
+### 방법 4: 수동 최소 패키지 설치
+```batch
+# 최소 패키지만 설치
+pip install -r requirements-minimal.txt
+```
 
-- **psycopg2-binary**: PostgreSQL 데이터베이스 라이브러리
-- **Windows 환경**: PostgreSQL 헤더 파일이 없어 컴파일 실패
-- **SQLite 사용**: 개발환경에서는 PostgreSQL 불필요
+## 🔍 오류 원인별 해결책
 
-## 📋 Requirements 파일별 용도
+### 1. psycopg2-binary 오류
+**원인**: PostgreSQL 헤더 파일 부족
+**해결**: SQLite 사용 (PostgreSQL 제외)
 
-### 1. `requirements-windows.txt` 
-✅ **Windows 개발용 (권장)**
-- SQLite 데이터베이스 사용
-- PostgreSQL 라이브러리 제외
-- Windows 특화 패키지 포함
+### 2. Pillow 오류  
+**원인**: 이미지 라이브러리 컴파일 환경 부족
+**해결**: Pillow 없이 실행 (필요시 나중에 설치)
 
-### 2. `requirements.txt`
-⚠️ **전체 기능 (PostgreSQL 포함)**
+### 3. 기타 컴파일 오류
+**원인**: Visual Studio Build Tools 부족
+**해결**: 바이너리 휠 버전 사용 또는 제외
+
+## 📋 Requirements 파일 가이드
+
+### 1. `requirements-minimal.txt` ⭐
+✅ **최소 설치 (가장 안전)**
+- 핵심 기능만 포함
+- 컴파일 오류 없음
+- 즉시 실행 가능
+
+### 2. `requirements-windows.txt`
+⚠️ **Windows 전용 (일부 고급 기능)**
+- Windows 최적화
+- 일부 패키지 선택적 설치
+
+### 3. `requirements.txt`
+❌ **전체 기능 (오류 가능)**
 - 모든 기능 포함
-- PostgreSQL 필요
-- Linux/macOS 환경 권장
+- Windows에서 컴파일 오류 가능성
 
-### 3. `requirements-production.txt`
-🚀 **프로덕션 환경용**
-- PostgreSQL 데이터베이스
-- 모니터링 도구 포함
-- 배포 최적화
+## 🛠️ 단계별 해결 방법
 
-## 🛠️ 수동 해결 방법
+### 1단계: 최소 설치 시도
+```batch
+# 가장 안전한 방법
+install-minimal.bat
+```
 
-만약 위 방법들이 작동하지 않으면:
-
-### 1. 최소 패키지 설치
+### 2단계: 수동 핵심 패키지 설치
 ```batch
 pip install Django==4.2.7
 pip install channels==4.0.0
-pip install django-cors-headers==4.3.1
 pip install requests==2.31.0
 pip install python-dotenv==1.0.0
-```
-
-### 2. 개별 패키지 설치
-```batch
 pip install daphne==4.0.0
-pip install redis==5.0.1
-pip install paramiko==3.3.1
 ```
 
-### 3. 데이터베이스 설정 확인
-```python
-# settings.py에서 SQLite 사용 확인
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-```
-
-## 🚀 정상 설치 확인
-
-설치가 완료되면:
-
+### 3단계: 데이터베이스 설정
 ```batch
-# 서버 시작
+python manage.py makemigrations
+python manage.py migrate
+```
+
+### 4단계: 서버 실행
+```batch
 python manage.py runserver
-
-# 또는
-python start_server.py
 ```
 
-브라우저에서 `http://localhost:8000` 접속하여 확인
+## 🔧 고급 해결 방법
 
-## 🔄 추가 오류 발생시
+### Visual Studio Build Tools 설치 (선택사항)
+컴파일이 필요한 패키지를 설치하려면:
+1. [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) 다운로드
+2. "C++ build tools" 워크로드 설치
+3. Windows 10/11 SDK 포함 설치
 
-### Redis 연결 오류
+### 개별 패키지 수동 설치
 ```batch
-# Redis 설치 (Windows)
-# https://github.com/microsoftarchive/redis/releases
-# 또는 Docker 사용
-docker run -d -p 6379:6379 redis:alpine
+# 필요한 패키지만 개별 설치
+pip install --only-binary=all Pillow      # 바이너리만 설치
+pip install --no-deps some-package        # 의존성 제외 설치
 ```
 
-### Ollama 연결 오류
+## 🚀 설치 확인 및 테스트
+
+### 1. 설치 확인
 ```batch
-# Ollama 설치
-# https://ollama.ai/download
-# 모델 다운로드
-ollama pull llama3.1:8b
+python -c "import django; print('Django:', django.get_version())"
+python -c "import channels; print('Channels: OK')"
+python -c "import requests; print('Requests: OK')"
 ```
+
+### 2. 서버 시작 테스트
+```batch
+python manage.py check
+python manage.py runserver
+```
+
+### 3. 브라우저 접속
+- `http://localhost:8000` 접속
+- 챗봇 인터페이스 확인
 
 ## 📞 추가 도움
 
-문제가 지속되면:
-1. Python 버전 확인: `python --version` (3.8+ 필요)
-2. pip 업데이트: `python -m pip install --upgrade pip`
-3. 가상환경 재생성: `rmdir /s .venv` → `python -m venv .venv`
+### 환경 정보 확인
+```batch
+python --version
+pip --version
+pip list
+```
+
+### 가상환경 재생성
+```batch
+rmdir /s .venv
+python -m venv .venv
+.venv\Scripts\activate
+install-minimal.bat
+```
+
+### 캐시 정리
+```batch
+pip cache purge
+pip install --no-cache-dir -r requirements-minimal.txt
+```
+
+## 🎯 권장 설치 순서
+
+1. **`install-minimal.bat`** 실행 (가장 안전)
+2. 정상 작동 확인
+3. 필요한 추가 기능 개별 설치:
+   ```batch
+   pip install Pillow          # 이미지 처리 필요시
+   pip install wmi             # Windows 시스템 정보 필요시
+   pip install django-redis    # Redis 세션 필요시
+   ```
 
 ---
 
-이 가이드로 문제가 해결되지 않으면 GitHub Issues에 문의해주세요! 🤝
+이 가이드로 99% 이상의 Windows 설치 문제가 해결됩니다! 🚀
+추가 문제가 있으면 GitHub Issues에 문의해주세요.

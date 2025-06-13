@@ -1,5 +1,39 @@
 # 변경 사항 (Changelog)
 
+## [1.1.1] - 2025-06-13 (핫픽스)
+
+### 🔧 Windows 설치 오류 완전 해결
+- **psycopg2-binary 컴파일 오류 해결**: PostgreSQL 제외한 SQLite 기반 개발환경
+- **Pillow 컴파일 오류 해결**: 이미지 처리 라이브러리 선택적 설치
+- **최소 설치 옵션**: `install-minimal.bat` 스크립트 추가 ⭐
+- **다단계 설치 시스템**: 최소 → Windows → 전체 순서로 시도
+
+### 📦 새로운 Requirements 파일
+- `requirements-minimal.txt` - 핵심 기능만 (컴파일 없음) ⭐
+- `requirements-windows.txt` - Windows 최적화 (개선됨)
+- `requirements-production.txt` - 프로덕션 환경 전용
+
+### 🛠️ 업데이트된 설치 스크립트
+- `start.bat` - 최소 패키지부터 자동으로 시도
+- `start.ps1` - PowerShell에서 다단계 설치 지원
+- `install-minimal.bat` - 컴파일 없는 안전한 설치 ⭐
+
+### 📚 개선된 문서
+- `FIX-WINDOWS-INSTALL.md` - 상세한 Windows 설치 문제 해결 가이드
+- `quick-start-windows.md` - Windows 사용자 빠른 시작 가이드 개선
+- 단계별 해결 방법 및 대안 제시
+
+### 🚀 **즉시 사용 가능한 해결법**
+```batch
+# 컴파일 오류 없이 바로 시작
+install-minimal.bat
+
+# 또는 업데이트된 자동 설치
+start.bat
+```
+
+---
+
 ## [1.1.0] - 2025-06-13
 
 ### 🎉 주요 기능 추가

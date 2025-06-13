@@ -39,8 +39,8 @@ django-csp==3.7
 redis==5.0.1
 django-redis==5.4.0
 
-# 유틸리티
-Pillow==10.1.0
+# 유틸리티 (선택사항)
+# Pillow==10.1.0  # 이미지 처리 (필요시 설치: pip install Pillow)
 
 # Windows 특화 라이브러리
 pywin32==306; sys_platform == "win32"

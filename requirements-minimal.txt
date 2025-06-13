@@ -1,0 +1,43 @@
+# XShell AI 챗봇 - 최소 의존성 (Windows 호환)
+# 핵심 기능만 포함, 컴파일 오류 없음
+
+# 핵심 Django
+Django==4.2.7
+django-cors-headers==4.3.1
+
+# WebSocket 지원
+channels==4.0.0
+channels-redis==4.1.0
+
+# HTTP 클라이언트
+requests==2.31.0
+
+# 환경 설정
+python-dotenv==1.0.0
+
+# AI 백엔드 (Ollama)
+ollama==0.1.7
+
+# SSH 연결
+paramiko==3.3.1
+
+# ASGI 서버
+daphne==4.0.0
+
+# 정적 파일
+whitenoise==6.6.0
+
+# 캐싱
+redis==5.0.1
+
+# 보안
+django-ratelimit==4.1.0
+
+# Windows 특화 (조건부 설치)
+pywin32==306; sys_platform == "win32"
+
+# 선택적 설치 (필요시 별도 설치):
+# pip install Pillow          # 이미지 처리
+# pip install wmi             # Windows 시스템 정보
+# pip install django-redis    # Redis 세션
+# pip install pexpect         # Unix 터미널 (Linux/macOS만)

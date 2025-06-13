@@ -54,16 +54,31 @@ echo 📚 의존성 확인 중...
 pip show django >nul 2>&1
 if %errorlevel% neq 0 (
     echo 📥 의존성 설치 중... (시간이 걸릴 수 있습니다)
-    echo    Windows 전용 패키지 목록을 사용합니다...
-    pip install -r requirements-windows.txt
-    if %errorlevel% neq 0 (
-        echo ❌ 의존성 설치 실패
-        echo    문제가 지속되면 개별 패키지 설치를 시도합니다...
-        echo    pip install Django channels django-cors-headers requests python-dotenv
-        pause
-        exit /b 1
+    echo    최소 패키지부터 설치를 시도합니다...
+    
+    REM 먼저 최소 패키지 설치 시도
+    pip install -r requirements-minimal.txt
+    if %errorlevel% equ 0 (
+        echo ✅ 최소 의존성 설치 완료
+    ) else (
+        echo ⚠️ 최소 패키지 설치 실패, Windows 전용 패키지로 재시도...
+        pip install -r requirements-windows.txt
+        if %errorlevel% equ 0 (
+            echo ✅ Windows 전용 패키지 설치 완료
+        ) else (
+            echo ❌ 패키지 설치 실패
+            echo.
+            echo 🔧 수동 설치를 시도해보세요:
+            echo    pip install Django==4.2.7
+            echo    pip install channels==4.0.0
+            echo    pip install requests==2.31.0
+            echo    pip install python-dotenv==1.0.0
+            echo    pip install daphne==4.0.0
+            echo.
+            pause
+            exit /b 1
+        )
     )
-    echo ✅ 의존성 설치 완료
 ) else (
     echo ✅ 의존성 확인됨
 )

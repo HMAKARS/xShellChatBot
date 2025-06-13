@@ -90,16 +90,30 @@ if (-not $SkipChecks) {
     $djangoInstalled = pip show django 2>$null
     if (-not $djangoInstalled) {
         Write-Info "의존성 설치 중... (시간이 걸릴 수 있습니다)"
-        Write-Info "Windows 전용 패키지 목록을 사용합니다..."
-        pip install -r requirements-windows.txt
+        Write-Info "최소 패키지부터 설치를 시도합니다..."
+        
+        # 먼저 최소 패키지 설치 시도
+        pip install -r requirements-minimal.txt
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "의존성 설치 완료"
+            Write-Success "최소 의존성 설치 완료"
         } else {
-            Write-Error "의존성 설치 실패"
-            Write-Host "문제가 지속되면 개별 패키지 설치를 시도합니다:"
-            Write-Host "pip install Django channels django-cors-headers requests python-dotenv"
-            Read-Host "계속하려면 Enter를 누르세요"
-            exit 1
+            Write-Warning "최소 패키지 설치 실패, Windows 전용 패키지로 재시도..."
+            pip install -r requirements-windows.txt
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "Windows 전용 패키지 설치 완료"
+            } else {
+                Write-Error "패키지 설치 실패"
+                Write-Host ""
+                Write-Host "🔧 수동 설치를 시도해보세요:"
+                Write-Host "   pip install Django==4.2.7"
+                Write-Host "   pip install channels==4.0.0"  
+                Write-Host "   pip install requests==2.31.0"
+                Write-Host "   pip install python-dotenv==1.0.0"
+                Write-Host "   pip install daphne==4.0.0"
+                Write-Host ""
+                Read-Host "계속하려면 Enter를 누르세요"
+                exit 1
+            }
         }
     } else {
         Write-Success "의존성 확인됨"
