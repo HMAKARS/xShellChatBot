@@ -8,13 +8,13 @@ echo 🚀 XShell AI Chatbot All-in-One Installer
 echo ==========================================
 echo.
 echo Installing components:
-echo   • Python 3.11 + Virtual Environment
 echo   • Ollama AI Engine + Models
 echo   • Django Web Server + WebSocket
 echo   • XShell Integration + All Config Files
 echo.
-echo Estimated time: 15-30 minutes
-echo Required disk space: about 15GB
+echo Prerequisites: Python 3.11+ must be installed
+echo Estimated time: 10-20 minutes
+echo Required disk space: about 12GB
 echo.
 
 set /p CONTINUE="Start installation? (Y/n): "
@@ -52,116 +52,47 @@ if not exist "%TEMP_DIR%" (
 )
 
 :: =================================================================
-:: Step 1: System Check
+:: Step 1: Python Check
 :: =================================================================
 echo.
 echo ========================================
-echo Step 1: System Environment Check
-echo ========================================
-
-echo Checking system memory...
-powershell -Command "try { $mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host 'System Memory:' $memGB 'GB' } catch { Write-Host 'Memory check failed' }"
-
-echo Checking disk space...
-echo ✅ Disk space check completed
-
-echo ✅ System check completed
-pause
-
-:: =================================================================
-:: Step 2: Python Installation
-:: =================================================================
-echo.
-echo ========================================
-echo Step 2: Python Installation
+echo Step 1: Python Environment Check
 echo ========================================
 
 echo Checking for Python...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python not found. Installing Python...
-    
-    set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
-    set PYTHON_FILE=%TEMP_DIR%\python-installer.exe
-    
     echo.
-    echo Downloading Python installer...
-    echo URL: %PYTHON_URL%
-    echo Target: %PYTHON_FILE%
-    
-    powershell -Command "try { Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_FILE%'; Write-Host 'Download completed' } catch { Write-Host 'Download failed:' $_.Exception.Message; exit 1 }"
-    
-    if not exist "%PYTHON_FILE%" (
-        echo.
-        echo ERROR: Python download failed
-        echo Please download manually from https://python.org/downloads/
-        echo.
-        pause
-        goto :cleanup_and_exit
-    )
-    
+    echo ❌ ERROR: Python is not installed or not in PATH
     echo.
-    echo Installing Python... (this may take 2-5 minutes)
-    "%PYTHON_FILE%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
-    set INSTALL_RESULT=%errorlevel%
-    
+    echo Please install Python 3.11+ first:
+    echo   1. See PYTHON-INSTALL-GUIDE.md for detailed instructions
+    echo   2. Or download from: https://python.org/downloads/
+    echo   3. Make sure to check "Add Python to PATH" during installation
+    echo   4. Restart this installer after Python installation
     echo.
-    echo Cleaning up installer...
-    if exist "%PYTHON_FILE%" del "%PYTHON_FILE%" >nul 2>&1
-    
-    if %INSTALL_RESULT% neq 0 (
-        echo.
-        echo ERROR: Python installation failed with code %INSTALL_RESULT%
-        echo.
-        pause
-        goto :cleanup_and_exit
-    )
-    
-    echo.
-    echo Waiting for Python to be recognized... (10 seconds)
-    timeout /t 10 /nobreak >nul
-    
-    echo.
-    echo Testing Python installation...
-    python --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo.
-        echo ERROR: Python installation failed
-        echo Please restart your computer and try again
-        echo.
-        pause
-        goto :cleanup_and_exit
-    )
-    
-    echo ✅ Python installation completed successfully
-) else (
-    echo ✅ Python found and working
+    pause
+    goto :cleanup_and_exit
 )
 
-:: Simple Python version display
+echo ✅ Python found and working
 echo.
-echo Python version check:
+echo Python version:
 python --version
 
 echo.
-echo Upgrading pip...
-python -m pip install --upgrade pip --quiet
-if %errorlevel% neq 0 (
-    echo Warning: pip upgrade failed, continuing anyway...
-) else (
-    echo ✅ pip upgrade completed
-)
+echo Checking system memory...
+powershell -Command "try { $mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host 'System Memory:' $memGB 'GB' } catch { Write-Host 'Memory check failed' }"
 
-echo.
-echo Python setup completed successfully
+echo ✅ System check completed
 pause
 
 :: =================================================================
-:: Step 3: Ollama Installation
+:: Step 2: Ollama Installation
 :: =================================================================
 echo.
 echo ========================================
-echo Step 3: Ollama AI Engine Installation
+echo Step 2: Ollama AI Engine Installation
 echo ========================================
 
 echo Checking for Ollama...
@@ -222,9 +153,8 @@ if %errorlevel% neq 0 (
     echo ✅ Ollama already installed
 )
 
-:: Simple Ollama version display
 echo.
-echo Ollama version check:
+echo Ollama version:
 ollama --version
 
 echo.
@@ -265,11 +195,11 @@ echo Ollama setup completed successfully
 pause
 
 :: =================================================================
-:: Step 4: AI Models Installation
+:: Step 3: AI Models Installation
 :: =================================================================
 echo.
 echo ========================================
-echo Step 4: AI Models Installation
+echo Step 3: AI Models Installation
 echo ========================================
 echo.
 echo Installing high-performance AI models:
@@ -323,12 +253,22 @@ echo AI models setup completed
 pause
 
 :: =================================================================
-:: Step 5: Python Environment Setup
+:: Step 4: Python Environment Setup
 :: =================================================================
 echo.
 echo ========================================
-echo Step 5: Python Environment Setup
+echo Step 4: Python Environment Setup
 echo ========================================
+
+:: Upgrade pip first
+echo.
+echo Upgrading pip...
+python -m pip install --upgrade pip --quiet
+if %errorlevel% neq 0 (
+    echo Warning: pip upgrade failed, continuing anyway...
+) else (
+    echo ✅ pip upgrade completed
+)
 
 :: Create virtual environment
 if not exist .venv (
@@ -465,11 +405,11 @@ echo Python environment setup completed
 pause
 
 :: =================================================================
-:: Step 6: Configuration Files
+:: Step 5: Configuration Files
 :: =================================================================
 echo.
 echo ========================================
-echo Step 6: Configuration Files Setup
+echo Step 5: Configuration Files Setup
 echo ========================================
 
 if not exist .env (
@@ -521,11 +461,11 @@ echo Configuration files setup completed
 pause
 
 :: =================================================================
-:: Step 7: Database Setup
+:: Step 6: Database Setup
 :: =================================================================
 echo.
 echo ========================================
-echo Step 7: Database Setup
+echo Step 6: Database Setup
 echo ========================================
 
 echo Creating required directories...
@@ -554,11 +494,11 @@ echo Database setup completed
 pause
 
 :: =================================================================
-:: Step 8: System Test
+:: Step 7: System Test
 :: =================================================================
 echo.
 echo ========================================
-echo Step 8: System Test
+echo Step 7: System Test
 echo ========================================
 
 echo Testing complete system...
@@ -621,15 +561,14 @@ echo System test completed
 pause
 
 :: =================================================================
-:: Step 9: Installation Complete
+:: Step 8: Installation Complete
 :: =================================================================
 echo.
 echo ========================================
-echo Step 9: Installation Complete!
+echo Step 8: Installation Complete!
 echo ========================================
 echo.
 echo ✅ Successfully installed components:
-echo   • Python 3.11 + Virtual Environment
 echo   • Django Web Framework
 echo   • Ollama AI Engine
 echo   • AI Models: llama3.1:8b, codellama:13b
@@ -703,7 +642,8 @@ echo.
 echo Additional information:
 echo   • Admin panel: http://localhost:8000/admin
 echo   • Configuration file: .env
-echo   • Troubleshooting guide: TROUBLESHOOTING-AI.md
+echo   • Python install guide: PYTHON-INSTALL-GUIDE.md
+echo   • Troubleshooting: TROUBLESHOOTING-AI.md
 echo.
 echo Thank you for using XShell AI Chatbot!
 echo.
