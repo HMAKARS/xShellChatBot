@@ -232,6 +232,18 @@ class XShellService:
     def detect_sessions_path(self):
         home = os.path.expanduser("~")
         candidates = [
+            os.path.join(
+                home, "Documents", "NetSarang Computer", "8", "Xshell", "Sessions"
+            ),
+            os.path.join(
+                home, "Documents", "NetSarang Computer", "7", "Xshell", "Sessions"
+            ),
+            os.path.join(
+                home, "문서", "NetSarang Computer", "8", "Xshell", "Sessions"
+            ),
+            os.path.join(
+                home, "문서", "NetSarang Computer", "7", "Xshell", "Sessions"
+            ),
             os.path.join(home, "Documents", "Xshell", "Sessions"),
             os.path.join(home, "문서", "Xshell", "Sessions"),
         ]
