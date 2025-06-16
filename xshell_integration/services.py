@@ -255,8 +255,10 @@ class XShellService:
 
     def sync_xshell_sessions(self):
         if not self.sessions_path:
+            print(f"[XShell] 세션 폴더 없음: {self.sessions_path}")
             return 0
         xsh_files = glob.glob(os.path.join(self.sessions_path, "**", "*.xsh"), recursive=True)
+        print(f"[XShell] .xsh 파일 {len(xsh_files)}개 발견")
         count = 0
         for file_path in xsh_files:
             try:
@@ -266,6 +268,7 @@ class XShellService:
                 port = config.get('CONNECTION', 'Port', fallback=22)
                 username = config.get('CONNECTION:AUTHENTICATION', 'UserName', fallback='')
                 name = os.path.splitext(os.path.basename(file_path))[0]
+                print(f"[XShell] 파싱: {file_path} → host={host}, user={username}, port={port}")
                 if host:
                     XShellSession.objects.update_or_create(
                         session_file_path=file_path,
@@ -277,8 +280,10 @@ class XShellService:
                         }
                     )
                     count += 1
-            except Exception:
+            except Exception as e:
+                print(f"[XShell] 파싱 실패: {file_path}, {e}")
                 continue
+        print(f"[XShell] 최종 동기화 세션 수: {count}")
         return count
     
     def execute_command(self, command: str, session_name: str = 'default', shell_type: str = None) -> Dict[str, any]:
