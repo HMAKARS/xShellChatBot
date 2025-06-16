@@ -1,7 +1,5 @@
 @echo off
-:: XShell AI Chatbot All-in-One Installer (Final Fixed Version)
-:: Completely rewritten for maximum stability
-
+setlocal
 chcp 65001 >nul
 cls
 
@@ -16,152 +14,228 @@ echo   • Django Web Server + WebSocket
 echo   • XShell Integration + All Config Files
 echo.
 echo Estimated time: 15-30 minutes
-echo Required disk space: ~15GB
+echo Required disk space: about 15GB
 echo.
 
 set /p CONTINUE="Start installation? (Y/n): "
-if /i "%CONTINUE%"=="n" goto :user_exit
+if /i "%CONTINUE%"=="n" (
+    echo Installation cancelled.
+    pause
+    exit /b 0
+)
 
 :: Check admin rights
+echo.
 echo Checking admin rights...
 net session >nul 2>&1
 if %errorlevel% neq 0 (
+    echo.
     echo ERROR: Admin rights required.
     echo Right-click this file and select "Run as administrator"
+    echo.
     pause
     exit /b 1
 )
 echo ✅ Admin rights confirmed
 
+:: Set variables
+set SCRIPT_PATH=%~dp0
+set TEMP_DIR=%SCRIPT_PATH%temp_install
+echo.
+echo Script location: %SCRIPT_PATH%
+echo Temp directory: %TEMP_DIR%
+
 :: Create temp directory
-set TEMP_INSTALL_DIR=%~dp0temp_install
-if not exist "%TEMP_INSTALL_DIR%" mkdir "%TEMP_INSTALL_DIR%"
-echo Temp directory: %TEMP_INSTALL_DIR%
+if not exist "%TEMP_DIR%" (
+    mkdir "%TEMP_DIR%"
+    echo ✅ Temp directory created
+)
 
 :: =================================================================
 :: Step 1: System Check
 :: =================================================================
 echo.
+echo ========================================
 echo Step 1: System Environment Check
-echo =================================
+echo ========================================
 
 echo Checking system memory...
-powershell -Command "& {$mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host \"System Memory: $memGB GB\"}"
+powershell -Command "try { $mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host 'System Memory:' $memGB 'GB' } catch { Write-Host 'Memory check failed' }"
 
 echo Checking disk space...
-echo Disk space check completed
+echo ✅ Disk space check completed
 
 echo ✅ System check completed
+pause
 
 :: =================================================================
 :: Step 2: Python Installation
 :: =================================================================
 echo.
+echo ========================================
 echo Step 2: Python Installation
-echo ============================
+echo ========================================
 
+echo Checking for Python...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Python not found. Installing...
+    echo Python not found. Installing Python...
     
     set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
-    set PYTHON_FILE=%TEMP_INSTALL_DIR%\python-installer.exe
+    set PYTHON_FILE=%TEMP_DIR%\python-installer.exe
     
+    echo.
     echo Downloading Python installer...
-    powershell -Command "& {Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_FILE%'}"
+    echo URL: %PYTHON_URL%
+    echo Target: %PYTHON_FILE%
+    
+    powershell -Command "try { Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_FILE%'; Write-Host 'Download completed' } catch { Write-Host 'Download failed:' $_.Exception.Message; exit 1 }"
     
     if not exist "%PYTHON_FILE%" (
+        echo.
         echo ERROR: Python download failed
         echo Please download manually from https://python.org/downloads/
-        goto :install_error
+        echo.
+        pause
+        goto :cleanup_and_exit
     )
     
-    echo Installing Python (this may take 2-5 minutes)...
+    echo.
+    echo Installing Python... (this may take 2-5 minutes)
     "%PYTHON_FILE%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+    set INSTALL_RESULT=%errorlevel%
     
+    echo.
     echo Cleaning up installer...
     if exist "%PYTHON_FILE%" del "%PYTHON_FILE%" >nul 2>&1
     
-    echo Waiting for Python to be recognized...
-    timeout /t 10 /nobreak >nul
-    
-    python --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ERROR: Python installation failed
-        echo Please restart your computer and try again
-        goto :install_error
+    if %INSTALL_RESULT% neq 0 (
+        echo.
+        echo ERROR: Python installation failed with code %INSTALL_RESULT%
+        echo.
+        pause
+        goto :cleanup_and_exit
     )
     
-    echo ✅ Python installation completed
+    echo.
+    echo Waiting for Python to be recognized... (10 seconds)
+    timeout /t 10 /nobreak >nul
+    
+    echo.
+    echo Testing Python installation...
+    python --version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo.
+        echo ERROR: Python installation failed
+        echo Please restart your computer and try again
+        echo.
+        pause
+        goto :cleanup_and_exit
+    )
+    
+    echo ✅ Python installation completed successfully
 ) else (
     for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-    echo ✅ Python found: !PYTHON_VERSION!
+    echo ✅ Python found: %PYTHON_VERSION%
 )
 
-:: Upgrade pip
+echo.
 echo Upgrading pip...
 python -m pip install --upgrade pip --quiet
-echo ✅ pip upgrade completed
+if %errorlevel% neq 0 (
+    echo Warning: pip upgrade failed, continuing anyway...
+) else (
+    echo ✅ pip upgrade completed
+)
+
+echo.
+echo Python setup completed successfully
+pause
 
 :: =================================================================
 :: Step 3: Ollama Installation
 :: =================================================================
 echo.
+echo ========================================
 echo Step 3: Ollama AI Engine Installation
-echo ======================================
+echo ========================================
 
+echo Checking for Ollama...
 ollama --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Ollama not found. Installing...
+    echo Ollama not found. Installing Ollama...
     
-    set OLLAMA_FILE=%TEMP_INSTALL_DIR%\OllamaSetup.exe
+    set OLLAMA_FILE=%TEMP_DIR%\OllamaSetup.exe
     
+    echo.
     echo Downloading Ollama installer...
-    powershell -Command "& {Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '%OLLAMA_FILE%'}"
+    powershell -Command "try { Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '%OLLAMA_FILE%'; Write-Host 'Download completed' } catch { Write-Host 'Download failed:' $_.Exception.Message; exit 1 }"
     
     if not exist "%OLLAMA_FILE%" (
+        echo.
         echo ERROR: Ollama download failed
         echo Please download manually from https://ollama.com/download
-        goto :install_error
+        echo.
+        pause
+        goto :cleanup_and_exit
     )
     
-    echo Installing Ollama (this may take 2-5 minutes)...
+    echo.
+    echo Installing Ollama... (this may take 2-5 minutes)
     "%OLLAMA_FILE%" /S
+    set INSTALL_RESULT=%errorlevel%
     
+    echo.
     echo Cleaning up installer...
     if exist "%OLLAMA_FILE%" del "%OLLAMA_FILE%" >nul 2>&1
     
-    echo Waiting for Ollama service...
-    timeout /t 30 /nobreak >nul
-    
-    ollama --version >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo ERROR: Ollama installation failed
-        echo Please restart your computer and try again
-        goto :install_error
+    if %INSTALL_RESULT% neq 0 (
+        echo.
+        echo ERROR: Ollama installation failed with code %INSTALL_RESULT%
+        echo.
+        pause
+        goto :cleanup_and_exit
     )
     
-    echo ✅ Ollama installation completed
+    echo.
+    echo Waiting for Ollama service... (30 seconds)
+    timeout /t 30 /nobreak >nul
+    
+    echo.
+    echo Testing Ollama installation...
+    ollama --version >nul 2>&1
+    if %errorlevel% neq 0 (
+        echo.
+        echo ERROR: Ollama installation failed
+        echo Please restart your computer and try again
+        echo.
+        pause
+        goto :cleanup_and_exit
+    )
+    
+    echo ✅ Ollama installation completed successfully
 ) else (
     echo ✅ Ollama already installed
     ollama --version
 )
 
-:: Start Ollama service
+echo.
 echo Starting Ollama service...
 taskkill /f /im ollama.exe >nul 2>&1
 start /min "Ollama Service" ollama serve
 
-echo Waiting for service to start...
+echo.
+echo Waiting for service to start... (15 seconds)
 timeout /t 15 /nobreak >nul
 
-:: Check Ollama connection
+echo.
+echo Testing Ollama connection...
 set OLLAMA_OK=0
 for /l %%i in (1,1,5) do (
     echo Connection attempt %%i/5...
-    powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
-    if !errorlevel! equ 0 (
-        echo ✅ Ollama service running
+    powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:11434/' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo ✅ Ollama service is running properly
         set OLLAMA_OK=1
         goto :ollama_ready
     )
@@ -169,19 +243,26 @@ for /l %%i in (1,1,5) do (
 )
 
 if %OLLAMA_OK% equ 0 (
+    echo.
     echo ERROR: Ollama service failed to start
-    echo Please run 'ollama serve' manually
-    goto :install_error
+    echo Please run 'ollama serve' manually in another terminal
+    echo.
+    pause
+    goto :cleanup_and_exit
 )
 
 :ollama_ready
+echo.
+echo Ollama setup completed successfully
+pause
 
 :: =================================================================
 :: Step 4: AI Models Installation
 :: =================================================================
 echo.
+echo ========================================
 echo Step 4: AI Models Installation
-echo ===============================
+echo ========================================
 echo.
 echo Installing high-performance AI models:
 echo   • llama3.1:8b (4.7GB) - General conversation
@@ -191,11 +272,11 @@ echo.
 set MODEL_COUNT=0
 
 echo [1/2] Installing llama3.1:8b model (about 4.7GB)...
-ollama list | findstr "llama3.1:8b" >nul 2>&1
+ollama list 2>nul | findstr "llama3.1:8b" >nul 2>&1
 if %errorlevel% neq 0 (
     echo Download starting... (5-10 minutes expected)
     ollama pull llama3.1:8b
-    if !errorlevel! equ 0 (
+    if %errorlevel% equ 0 (
         echo ✅ llama3.1:8b installation completed
         set /a MODEL_COUNT+=1
     ) else (
@@ -206,12 +287,13 @@ if %errorlevel% neq 0 (
     set /a MODEL_COUNT+=1
 )
 
+echo.
 echo [2/2] Installing codellama:13b model (about 7GB)...
-ollama list | findstr "codellama:13b" >nul 2>&1
+ollama list 2>nul | findstr "codellama:13b" >nul 2>&1
 if %errorlevel% neq 0 (
     echo Download starting... (7-15 minutes expected)
     ollama pull codellama:13b
-    if !errorlevel! equ 0 (
+    if %errorlevel% equ 0 (
         echo ✅ codellama:13b installation completed
         set /a MODEL_COUNT+=1
     ) else (
@@ -223,117 +305,322 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo AI Models installation result: %MODEL_COUNT% models installed
-echo Installed models:
+echo AI Models installation result: %MODEL_COUNT% models installed successfully
+echo.
+echo Current installed models:
 ollama list
+
+echo.
+echo AI models setup completed
+pause
 
 :: =================================================================
 :: Step 5: Python Environment Setup
 :: =================================================================
 echo.
+echo ========================================
 echo Step 5: Python Environment Setup
-echo =================================
+echo ========================================
 
 :: Create virtual environment
 if not exist .venv (
     echo Creating virtual environment...
     python -m venv .venv
     if %errorlevel% neq 0 (
+        echo.
         echo ERROR: Virtual environment creation failed
-        goto :install_error
+        echo.
+        pause
+        goto :cleanup_and_exit
     )
-    echo ✅ Virtual environment created
+    echo ✅ Virtual environment created successfully
 ) else (
     echo ✅ Virtual environment already exists
 )
 
 :: Activate virtual environment
+echo.
 echo Activating virtual environment...
 call .venv\Scripts\activate.bat
 if %errorlevel% neq 0 (
+    echo.
     echo ERROR: Virtual environment activation failed
-    goto :install_error
+    echo.
+    pause
+    goto :cleanup_and_exit
 )
-echo ✅ Virtual environment activated
+echo ✅ Virtual environment activated successfully
 
 :: Install packages
+echo.
 echo Installing Python packages...
-call :install_packages
+
+if exist requirements-minimal.txt (
+    echo Trying minimal packages first...
+    pip install -r requirements-minimal.txt --quiet
+    if %errorlevel% equ 0 (
+        echo ✅ Minimal packages installed successfully
+        goto :packages_done
+    )
+)
+
+if exist requirements-windows.txt (
+    echo Trying Windows-specific packages...
+    pip install -r requirements-windows.txt --quiet
+    if %errorlevel% equ 0 (
+        echo ✅ Windows packages installed successfully
+        goto :packages_done
+    )
+)
+
+echo Installing core packages individually...
+set PACKAGE_COUNT=0
+
+echo [1/8] Installing Django...
+pip install Django==4.2.7 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ Django installed
+) else (
+    echo ❌ Django installation failed
+)
+
+echo [2/8] Installing CORS headers...
+pip install django-cors-headers==4.3.1 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ CORS headers installed
+) else (
+    echo ❌ CORS headers installation failed
+)
+
+echo [3/8] Installing WebSocket support...
+pip install channels==4.0.0 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ WebSocket support installed
+) else (
+    echo ❌ WebSocket support installation failed
+)
+
+echo [4/8] Installing HTTP client...
+pip install requests==2.31.0 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ HTTP client installed
+) else (
+    echo ❌ HTTP client installation failed
+)
+
+echo [5/8] Installing environment variables support...
+pip install python-dotenv==1.0.0 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ Environment variables support installed
+) else (
+    echo ❌ Environment variables support installation failed
+)
+
+echo [6/8] Installing ASGI server...
+pip install daphne==4.0.0 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ ASGI server installed
+) else (
+    echo ❌ ASGI server installation failed
+)
+
+echo [7/8] Installing SSH support...
+pip install paramiko==3.3.1 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ SSH support installed
+) else (
+    echo ❌ SSH support installation failed
+)
+
+echo [8/8] Installing Redis client...
+pip install redis==5.0.1 --quiet
+if %errorlevel% equ 0 (
+    set /a PACKAGE_COUNT+=1
+    echo ✅ Redis client installed
+) else (
+    echo ❌ Redis client installation failed
+)
+
+echo.
+echo Individual package installation result: %PACKAGE_COUNT%/8 successful
+
+:packages_done
+echo.
+echo Python environment setup completed
+pause
 
 :: =================================================================
 :: Step 6: Configuration Files
 :: =================================================================
 echo.
+echo ========================================
 echo Step 6: Configuration Files Setup
-echo ==================================
+echo ========================================
 
 if not exist .env (
     if exist .env.example (
         echo Creating .env file from template...
         copy .env.example .env >nul
-        echo ✅ .env file created
+        echo ✅ .env file created from template
     ) else (
         echo Creating new .env file...
-        call :create_env_file
-        echo ✅ .env file created
+        (
+            echo # XShell AI Chatbot Environment Configuration
+            echo.
+            echo # Django Settings
+            echo SECRET_KEY=django-insecure-xshell-chatbot-dev-key-auto-generated
+            echo DEBUG=True
+            echo.
+            echo # Database
+            echo DATABASE_URL=sqlite:///db.sqlite3
+            echo.
+            echo # XShell Integration
+            echo XSHELL_PATH=C:\Program Files\NetSarang\Xshell 8\Xshell.exe
+            echo XSHELL_SESSIONS_PATH=C:\Users\%USERNAME%\Documents\NetSarang Computer\8\Xshell\Sessions
+            echo.
+            echo # AI Backend (Ollama^)
+            echo OLLAMA_BASE_URL=http://localhost:11434
+            echo DEFAULT_AI_MODEL=llama3.1:8b
+            echo CODE_AI_MODEL=codellama:13b
+            echo.
+            echo # High-performance AI Options
+            echo OLLAMA_MAX_LOADED_MODELS=2
+            echo OLLAMA_CONTEXT_LENGTH=8192
+            echo OLLAMA_NUM_PARALLEL=4
+            echo.
+            echo # Security
+            echo ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+            echo CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+            echo.
+            echo # Logging
+            echo LOG_LEVEL=INFO
+        ) > .env
+        echo ✅ New .env file created
     )
 ) else (
     echo ✅ .env file already exists
 )
 
+echo.
+echo Configuration files setup completed
+pause
+
 :: =================================================================
 :: Step 7: Database Setup
 :: =================================================================
 echo.
+echo ========================================
 echo Step 7: Database Setup
-echo ======================
+echo ========================================
 
 echo Creating required directories...
 if not exist logs mkdir logs
 if not exist static mkdir static
 if not exist templates mkdir templates
 if not exist media mkdir media
-echo ✅ Directories created
+echo ✅ Required directories created
 
+echo.
 echo Setting up database...
 python manage.py check --verbosity=0 >nul 2>&1
 python manage.py makemigrations --verbosity=0 >nul 2>&1
 python manage.py migrate --verbosity=0
 if %errorlevel% neq 0 (
+    echo.
     echo ERROR: Database setup failed
-    goto :install_error
+    echo.
+    pause
+    goto :cleanup_and_exit
 )
-echo ✅ Database setup completed
+echo ✅ Database setup completed successfully
+
+echo.
+echo Database setup completed
+pause
 
 :: =================================================================
 :: Step 8: System Test
 :: =================================================================
 echo.
+echo ========================================
 echo Step 8: System Test
-echo ===================
+echo ========================================
 
 echo Testing complete system...
 
-call :test_system
+echo [1/4] Testing Python environment...
+python -c "import django; print('Django OK')" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ❌ System test failed
-    set /p CONTINUE_ANYWAY="Ignore errors and continue? (y/N): "
-    if /i "!CONTINUE_ANYWAY!" neq "y" (
-        echo Installation aborted
-        goto :install_error
-    )
+    echo ❌ Python environment test failed
+    goto :test_failed
 ) else (
-    echo ✅ All tests passed!
+    echo ✅ Python environment test passed
 )
+
+echo [2/4] Testing Ollama connection...
+powershell -Command "try { Invoke-WebRequest -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0 } catch { exit 1 }" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ❌ Ollama connection test failed
+    goto :test_failed
+) else (
+    echo ✅ Ollama connection test passed
+)
+
+echo [3/4] Testing AI model...
+python -c "import requests; response = requests.post('http://localhost:11434/api/generate', json={'model': 'llama3.1:8b', 'prompt': 'Hi', 'stream': False, 'options': {'num_predict': 5}}, timeout=15); print('AI Model OK') if response.status_code == 200 else exit(1)" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ❌ AI model test failed
+    goto :test_failed
+) else (
+    echo ✅ AI model test passed
+)
+
+echo [4/4] Testing Django configuration...
+python manage.py check --verbosity=0 >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ❌ Django configuration test failed
+    goto :test_failed
+) else (
+    echo ✅ Django configuration test passed
+)
+
+echo.
+echo ✅ All system tests passed successfully!
+goto :test_passed
+
+:test_failed
+echo.
+echo ❌ Some system tests failed
+set /p CONTINUE_ANYWAY="Do you want to continue anyway? (y/N): "
+if /i "%CONTINUE_ANYWAY%" neq "y" (
+    echo.
+    echo Installation aborted by user
+    echo.
+    pause
+    goto :cleanup_and_exit
+)
+
+:test_passed
+echo.
+echo System test completed
+pause
 
 :: =================================================================
 :: Step 9: Installation Complete
 :: =================================================================
 echo.
+echo ========================================
 echo Step 9: Installation Complete!
-echo ===============================
+echo ========================================
 echo.
-echo ✅ Installed components:
+echo ✅ Successfully installed components:
 echo   • Python 3.11 + Virtual Environment
 echo   • Django Web Framework
 echo   • Ollama AI Engine
@@ -342,17 +629,18 @@ echo   • WebSocket Real-time Chat
 echo   • Database (SQLite)
 echo   • All Configuration Files
 echo.
-echo 🚀 High-performance settings:
+echo 🚀 High-performance settings configured:
 echo   • Default AI Model: llama3.1:8b
 echo   • Code AI Model: codellama:13b
 echo   • Simultaneous Model Loading: 2
 echo   • Context Length: 8192 tokens
 echo.
 
-:: Clean up temp directory
-if exist "%TEMP_INSTALL_DIR%" rmdir /s /q "%TEMP_INSTALL_DIR%" >nul 2>&1
+echo Cleaning up temporary files...
+if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%" >nul 2>&1
 
-set /p START_SERVER="Start server now? (Y/n): "
+echo.
+set /p START_SERVER="Do you want to start the server now? (Y/n): "
 if /i "%START_SERVER%"=="n" goto :manual_start
 
 echo.
@@ -364,198 +652,51 @@ start "" cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:8000"
 
 :: Start server
 if exist start.bat (
-    echo Using start.bat to start server...
+    echo Using start.bat to start the server...
     call start.bat
 ) else if exist run-daphne.bat (
-    echo Using run-daphne.bat to start server...
+    echo Using run-daphne.bat to start the server...
     call run-daphne.bat
 ) else (
     echo Starting Django development server...
     python manage.py runserver 0.0.0.0:8000
 )
 
-goto :end
+goto :final_end
 
 :manual_start
 echo.
 echo Manual start instructions:
 echo =========================
 echo.
-echo 1. Start server: start.bat
-echo 2. Open browser: http://localhost:8000
-echo 3. Check AI status: check-ollama-quick.bat
+echo 1. To start server: run start.bat
+echo 2. Open browser to: http://localhost:8000
+echo 3. Check AI status: run check-ollama-quick.bat
 echo.
+goto :final_end
 
-goto :end
-
-:: =================================================================
-:: Function Definitions
-:: =================================================================
-
-:install_packages
-set PACKAGE_SUCCESS=0
-
-if exist requirements-minimal.txt (
-    echo Trying minimal packages first...
-    pip install -r requirements-minimal.txt --quiet
-    if !errorlevel! equ 0 (
-        echo ✅ Minimal packages installed
-        set PACKAGE_SUCCESS=1
-        exit /b 0
-    )
-)
-
-if exist requirements-windows.txt (
-    echo Trying Windows-specific packages...
-    pip install -r requirements-windows.txt --quiet
-    if !errorlevel! equ 0 (
-        echo ✅ Windows packages installed
-        set PACKAGE_SUCCESS=1
-        exit /b 0
-    )
-)
-
-if %PACKAGE_SUCCESS% equ 0 (
-    echo Installing core packages individually...
-    call :install_core_packages
-)
-exit /b 0
-
-:install_core_packages
-echo Installing core packages individually...
-set PACKAGE_COUNT=0
-
-echo [1/8] Django...
-pip install Django==4.2.7 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [2/8] CORS headers...
-pip install django-cors-headers==4.3.1 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [3/8] WebSocket support...
-pip install channels==4.0.0 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [4/8] HTTP client...
-pip install requests==2.31.0 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [5/8] Environment variables...
-pip install python-dotenv==1.0.0 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [6/8] ASGI server...
-pip install daphne==4.0.0 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [7/8] SSH support...
-pip install paramiko==3.3.1 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo [8/8] Redis client...
-pip install redis==5.0.1 --quiet
-if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
-
-echo Individual package installation result: %PACKAGE_COUNT%/8 successful
-exit /b 0
-
-:create_env_file
-(
-echo # XShell AI Chatbot Environment Configuration
+:cleanup_and_exit
 echo.
-echo # Django Settings
-echo SECRET_KEY=django-insecure-xshell-chatbot-dev-key-auto-generated
-echo DEBUG=True
+echo Cleaning up and exiting...
+if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%" >nul 2>&1
 echo.
-echo # Database
-echo DATABASE_URL=sqlite:///db.sqlite3
+echo Installation was not completed successfully.
+echo Please check the error messages above and try again.
 echo.
-echo # XShell Integration
-echo XSHELL_PATH=C:\Program Files\NetSarang\Xshell 8\Xshell.exe
-echo XSHELL_SESSIONS_PATH=C:\Users\%USERNAME%\Documents\NetSarang Computer\8\Xshell\Sessions
-echo.
-echo # AI Backend (Ollama^)
-echo OLLAMA_BASE_URL=http://localhost:11434
-echo DEFAULT_AI_MODEL=llama3.1:8b
-echo CODE_AI_MODEL=codellama:13b
-echo.
-echo # High-performance AI Options
-echo OLLAMA_MAX_LOADED_MODELS=2
-echo OLLAMA_CONTEXT_LENGTH=8192
-echo OLLAMA_NUM_PARALLEL=4
-echo.
-echo # Security
-echo ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-echo CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-echo.
-echo # Logging
-echo LOG_LEVEL=INFO
-) > .env
-exit /b 0
+pause
+exit /b 1
 
-:test_system
-echo [1/4] Python environment test...
-python -c "import django; print('Django OK')" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Python environment error
-    exit /b 1
-)
-
-echo [2/4] Ollama connection test...
-powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Ollama connection error
-    exit /b 1
-)
-
-echo [3/4] AI model test...
-python -c "import requests; response = requests.post('http://localhost:11434/api/generate', json={'model': 'llama3.1:8b', 'prompt': 'Hi', 'stream': False, 'options': {'num_predict': 5}}, timeout=15); print('AI Model OK') if response.status_code == 200 else exit(1)" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: AI model test failed
-    exit /b 1
-)
-
-echo [4/4] Django configuration test...
-python manage.py check --verbosity=0 >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ERROR: Django configuration error
-    exit /b 1
-)
-
-echo ✅ All system tests passed
-exit /b 0
-
-:install_error
+:final_end
 echo.
-echo ERROR: Installation failed
-echo.
-echo Troubleshooting steps:
-echo   1. Check internet connection
-echo   2. Run as administrator
-echo   3. Temporarily disable antivirus
-echo   4. Restart computer and try again
-echo.
-goto :end
-
-:user_exit
-echo.
-echo Installation cancelled by user.
-echo You can run install-all-in-one.bat again later.
-echo.
-
-:end
-:: Clean up temp directory
-if exist "%TEMP_INSTALL_DIR%" rmdir /s /q "%TEMP_INSTALL_DIR%" >nul 2>&1
-
-echo.
-echo XShell AI Chatbot Installer Finished
+echo ==========================================
+echo XShell AI Chatbot Installation Finished
+echo ==========================================
 echo.
 echo Additional information:
 echo   • Admin panel: http://localhost:8000/admin
 echo   • Configuration file: .env
-echo   • Troubleshooting: TROUBLESHOOTING-AI.md
+echo   • Troubleshooting guide: TROUBLESHOOTING-AI.md
 echo.
-echo Enjoy your AI chatbot!
+echo Thank you for using XShell AI Chatbot!
 echo.
 pause
