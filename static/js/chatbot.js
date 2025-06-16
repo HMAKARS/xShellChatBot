@@ -756,6 +756,14 @@ document.addEventListener('click', function(e) {
 let chatbot;
 document.addEventListener('DOMContentLoaded', function() {
     chatbot = new XShellChatbot();
+    loadXShellSessions();
+    // XShell 세션 동기화 버튼 이벤트
+    const syncBtn = document.getElementById('xshellSyncBtn');
+    if (syncBtn) {
+        syncBtn.addEventListener('click', function() {
+            loadXShellSessions();
+        });
+    }
 });
 
 // 페이지 언로드시 WebSocket 연결 정리
@@ -882,3 +890,31 @@ document.addEventListener('click', function(e) {
         connectXShellSession(relPath, password);
     }
 });
+
+function loadXShellSessions() {
+    fetch('/api/xshell/sessions/')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('xshellSessionList');
+            if (!container) return;
+            container.innerHTML = '';
+            const sessions = data.sessions || [];
+            if (sessions.length === 0) {
+                container.innerHTML = '<div class="text-muted">XShell 세션이 없습니다</div>';
+            } else {
+                sessions.forEach(session => {
+                    const name = session.name;
+                    const host = session.host;
+                    container.innerHTML += `
+                        <div class="xshell-session-item" data-rel-path="${session.session_file_path || ''}">
+                            <div class="fw-bold">${name}</div>
+                            <div class="small text-muted">${host}</div>
+                        </div>
+                    `;
+                });
+            }
+        })
+        .catch(err => {
+            console.error('XShell 세션 목록 불러오기 실패:', err);
+        });
+}
