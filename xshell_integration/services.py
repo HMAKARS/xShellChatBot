@@ -10,6 +10,7 @@ from django.conf import settings
 import paramiko
 import glob
 import xml.etree.ElementTree as ET
+import configparser
 
 # Windows 호환성을 위한 조건부 import
 try:
@@ -259,22 +260,23 @@ class XShellService:
         count = 0
         for file_path in xsh_files:
             try:
-                tree = ET.parse(file_path)
-                root = tree.getroot()
-                host = root.findtext("Host")
-                username = root.findtext("UserName")
-                port = int(root.findtext("Port") or 22)
+                config = configparser.ConfigParser()
+                config.read(file_path, encoding='utf-8')
+                host = config.get('CONNECTION', 'Host', fallback=None)
+                port = config.get('CONNECTION', 'Port', fallback=22)
+                username = config.get('CONNECTION:AUTHENTICATION', 'UserName', fallback='')
                 name = os.path.splitext(os.path.basename(file_path))[0]
-                XShellSession.objects.update_or_create(
-                    session_file_path=file_path,
-                    defaults={
-                        "name": name,
-                        "host": host,
-                        "username": username,
-                        "port": port
-                    }
-                )
-                count += 1
+                if host:
+                    XShellSession.objects.update_or_create(
+                        session_file_path=file_path,
+                        defaults={
+                            "name": name,
+                            "host": host,
+                            "username": username,
+                            "port": int(port)
+                        }
+                    )
+                    count += 1
             except Exception:
                 continue
         return count
