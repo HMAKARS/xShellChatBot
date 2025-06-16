@@ -28,6 +28,11 @@ class Command(BaseCommand):
             type=str,
             help='세션 삭제',
         )
+        parser.add_argument(
+            '--sync',
+            action='store_true',
+            help='세션 폴더에서 .xsh 파일을 자동 동기화',
+        )
 
     def handle(self, *args, **options):
         if options['list']:
@@ -38,8 +43,10 @@ class Command(BaseCommand):
             self.test_session(options['test'])
         elif options['delete']:
             self.delete_session(options['delete'])
+        elif options['sync']:
+            self.sync_sessions()
         else:
-            self.stdout.write(self.style.WARNING('사용법: --list, --add, --test <name>, --delete <name>'))
+            self.stdout.write(self.style.WARNING('사용법: --list, --add, --test <name>, --delete <name>, --sync'))
 
     def list_sessions(self):
         """세션 목록 조회"""
@@ -136,3 +143,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"✅ 세션 '{session_name}' 삭제 완료"))
         else:
             self.stdout.write("삭제가 취소되었습니다.")
+
+    def sync_sessions(self):
+        xshell_service = XShellService()
+        count = xshell_service.sync_xshell_sessions()
+        self.stdout.write(self.style.SUCCESS(f'🔄 {count}개 세션 동기화 완료'))

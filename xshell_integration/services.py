@@ -8,6 +8,8 @@ import platform
 from typing import Dict, List, Optional, Generator
 from django.conf import settings
 import paramiko
+import glob
+import xml.etree.ElementTree as ET
 
 # Windows 호환성을 위한 조건부 import
 try:
@@ -94,7 +96,9 @@ class WindowsShellService:
             
             return {
                 'success': result.returncode == 0,
-                'output': result.stdout + (result.stderr if result.returncode != 0 else ''),
+                'output': result.stdout + (
+                    result.stderr if result.returncode != 0 else ''
+                ),
                 'error': result.stderr if result.returncode != 0 else '',
                 'exit_code': result.returncode,
                 'execution_time': execution_time,
@@ -130,7 +134,9 @@ class WindowsShellService:
             
             return {
                 'success': result.returncode == 0,
-                'output': result.stdout + (result.stderr if result.returncode != 0 else ''),
+                'output': result.stdout + (
+                    result.stderr if result.returncode != 0 else ''
+                ),
                 'error': result.stderr if result.returncode != 0 else '',
                 'exit_code': result.returncode,
                 'execution_time': execution_time,
@@ -217,12 +223,50 @@ class XShellService:
     """XShell 및 Windows Shell 통합 서비스"""
     
     def __init__(self):
+        self.sessions_path = getattr(settings, 'XSHELL_SESSIONS_PATH', '') or self.detect_sessions_path()
         self.xshell_path = getattr(settings, 'XSHELL_PATH', '')
-        self.sessions_path = getattr(settings, 'XSHELL_SESSIONS_PATH', '')
-        self.active_connections = {}  # 활성 SSH 연결 저장
+        self.active_connections = {}
         self.is_windows = platform.system().lower() == 'windows'
         self.windows_shell = WindowsShellService() if self.is_windows else None
         
+    def detect_sessions_path(self):
+        home = os.path.expanduser("~")
+        candidates = [
+            os.path.join(home, "Documents", "Xshell", "Sessions"),
+            os.path.join(home, "문서", "Xshell", "Sessions"),
+        ]
+        for path in candidates:
+            if os.path.isdir(path):
+                return path
+        return ""
+
+    def sync_xshell_sessions(self):
+        if not self.sessions_path:
+            return 0
+        xsh_files = glob.glob(os.path.join(self.sessions_path, "**", "*.xsh"), recursive=True)
+        count = 0
+        for file_path in xsh_files:
+            try:
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                host = root.findtext("Host")
+                username = root.findtext("UserName")
+                port = int(root.findtext("Port") or 22)
+                name = os.path.splitext(os.path.basename(file_path))[0]
+                XShellSession.objects.update_or_create(
+                    session_file_path=file_path,
+                    defaults={
+                        "name": name,
+                        "host": host,
+                        "username": username,
+                        "port": port
+                    }
+                )
+                count += 1
+            except Exception:
+                continue
+        return count
+    
     def execute_command(self, command: str, session_name: str = 'default', shell_type: str = None) -> Dict[str, any]:
         """명령어 실행 - 자동으로 적절한 shell 선택"""
         
@@ -360,7 +404,9 @@ class XShellService:
             
             return {
                 'success': exit_code == 0,
-                'output': output + ('\n' + error if error else ''),
+                'output': output + (
+                    '\n' + error if error else ''
+                ),
                 'error': error if exit_code != 0 else '',
                 'exit_code': exit_code,
                 'execution_time': execution_time
