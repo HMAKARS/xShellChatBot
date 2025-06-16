@@ -1,23 +1,23 @@
 @echo off
-:: XShell AI 챗봇 All-in-One 설치 스크립트 (개선된 버전)
-:: 안정성과 오류 처리를 대폭 개선한 버전
+:: XShell AI 챗봇 All-in-One 설치 스크립트 (문제 해결 버전)
+:: 인코딩 및 경로 처리 문제 해결
 
 setlocal enabledelayedexpansion
 chcp 65001 >nul
 cls
 
-:: 전역 변수 설정
-set "SCRIPT_DIR=%~dp0"
-set "TEMP_DIR=%SCRIPT_DIR%temp_install"
-set "LOG_FILE=%SCRIPT_DIR%install.log"
-set "PYTHON_INSTALLER=python-installer.exe"
-set "OLLAMA_INSTALLER=OllamaSetup.exe"
+:: 전역 변수 설정 (따옴표 문제 해결)
+set SCRIPT_DIR=%~dp0
+set TEMP_DIR=%SCRIPT_DIR%temp_install
+set LOG_FILE=%SCRIPT_DIR%install.log
+set PYTHON_INSTALLER=python-installer.exe
+set OLLAMA_INSTALLER=OllamaSetup.exe
 
 :: 로그 시작
 echo %date% %time% - XShell AI 챗봇 설치 시작 > "%LOG_FILE%"
 
 echo.
-echo 🚀 XShell AI 챗봇 All-in-One 설치 스크립트 (개선된 버전)
+echo 🚀 XShell AI 챗봇 All-in-One 설치 스크립트 (문제 해결 버전)
 echo ========================================================
 echo.
 echo 💪 고성능 시스템용 최적화 설치 프로그램
@@ -50,7 +50,10 @@ echo ✅ 관리자 권한 확인됨
 echo %date% %time% - 관리자 권한 확인됨 >> "%LOG_FILE%"
 
 :: 임시 디렉토리 생성
-if not exist "%TEMP_DIR%" mkdir "%TEMP_DIR%"
+if not exist "%TEMP_DIR%" (
+    mkdir "%TEMP_DIR%"
+    echo 📂 임시 디렉토리 생성: %TEMP_DIR%
+)
 
 :: =================================================================
 :: 1단계: 시스템 환경 검사
@@ -60,13 +63,19 @@ echo 🔍 1단계: 시스템 환경 검사
 echo ==========================
 
 echo 시스템 정보 확인 중...
-systeminfo | findstr "Total Physical Memory" | findstr /C:"GB"
-if %errorlevel% neq 0 (
+wmic computersystem get TotalPhysicalMemory /value 2>nul | findstr "=" > temp_mem.txt
+if exist temp_mem.txt (
+    for /f "tokens=2 delims==" %%i in (temp_mem.txt) do (
+        set /a MEM_GB=%%i/1024/1024/1024
+        echo 💾 시스템 메모리: !MEM_GB! GB
+    )
+    del temp_mem.txt
+) else (
     echo ⚠️ 시스템 메모리 정보를 확인할 수 없습니다.
 )
 
 echo 디스크 공간 확인 중...
-for /f "tokens=3" %%i in ('dir /-c') do set FREE_SPACE=%%i
+for /f "tokens=3" %%i in ('dir /-c "%SCRIPT_DIR%" 2^>nul ^| findstr "bytes free"') do set FREE_SPACE=%%i
 echo 💾 사용 가능한 디스크 공간 확인됨
 
 echo ✅ 시스템 환경 검사 완료
@@ -83,42 +92,52 @@ if %errorlevel% neq 0 (
     echo ❌ Python이 설치되지 않았습니다.
     echo.
     echo 📥 Python 자동 설치를 시도합니다...
-    
-    :: Python 다운로드
+
+    :: Python 다운로드 URL
     set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
-    
+    set PYTHON_PATH=%TEMP_DIR%\%PYTHON_INSTALLER%
+
     echo 📥 Python 설치 파일 다운로드 중...
     echo %date% %time% - Python 다운로드 시작 >> "%LOG_FILE%"
-    
-    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%PYTHON_URL%', '%TEMP_DIR%\%PYTHON_INSTALLER%'); Write-Host '✅ Python 다운로드 완료' } catch { Write-Host '❌ Python 다운로드 실패'; exit 1 }"
-    
-    if not exist "%TEMP_DIR%\%PYTHON_INSTALLER%" (
+
+    :: PowerShell을 사용한 다운로드 (더 안정적)
+    powershell -Command "& {try {$client = New-Object System.Net.WebClient; $client.DownloadFile('%PYTHON_URL%', '%PYTHON_PATH%'); Write-Host '✅ Python 다운로드 완료'} catch {Write-Host '❌ Python 다운로드 실패: ' + $_.Exception.Message; exit 1}}"
+
+    if not exist "%PYTHON_PATH%" (
         echo ❌ Python 다운로드 실패
         echo   수동으로 https://python.org/downloads/ 에서 설치하세요.
         echo %date% %time% - Python 다운로드 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
+
     echo 🔧 Python 설치 중... (2-5분 소요)
     echo %date% %time% - Python 설치 시작 >> "%LOG_FILE%"
-    
-    "%TEMP_DIR%\%PYTHON_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+
+    :: 설치 실행 (따옴표로 경로 보호)
+    "%PYTHON_PATH%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
     set PYTHON_INSTALL_RESULT=%errorlevel%
-    
+
     echo 🧹 Python 설치 파일 정리 중...
-    call :safe_delete "%TEMP_DIR%\%PYTHON_INSTALLER%"
-    
+    if exist "%PYTHON_PATH%" (
+        del "%PYTHON_PATH%" >nul 2>&1
+        if exist "%PYTHON_PATH%" (
+            echo ⚠️ 설치 파일 삭제 지연, 계속 진행합니다.
+        )
+    )
+
     if %PYTHON_INSTALL_RESULT% neq 0 (
         echo ❌ Python 설치 실패 (오류 코드: %PYTHON_INSTALL_RESULT%)
         echo %date% %time% - Python 설치 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
-    echo 🔄 시스템 환경 변수 새로고침 중...
+
+    echo 🔄 환경 변수 새로고침 중...
+    :: PATH 새로고침
     call :refresh_path
-    
+
+    echo ⏱️ Python 인식 대기 중... (10초)
     timeout /t 10 /nobreak >nul
-    
+
     python --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo ❌ Python 설치 후에도 인식되지 않습니다.
@@ -126,7 +145,7 @@ if %errorlevel% neq 0 (
         echo %date% %time% - Python PATH 설정 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
+
     echo ✅ Python 설치 완료!
     echo %date% %time% - Python 설치 완료 >> "%LOG_FILE%"
 ) else (
@@ -152,39 +171,43 @@ if %errorlevel% neq 0 (
     echo ❌ Ollama가 설치되지 않았습니다.
     echo.
     echo 📥 Ollama 자동 설치를 시도합니다...
-    
+
+    set OLLAMA_PATH=%TEMP_DIR%\%OLLAMA_INSTALLER%
+
     echo 📥 Ollama 설치 파일 다운로드 중...
     echo %date% %time% - Ollama 다운로드 시작 >> "%LOG_FILE%"
-    
-    powershell -Command "try { Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '%TEMP_DIR%\%OLLAMA_INSTALLER%' -ErrorAction Stop; Write-Host '✅ Ollama 다운로드 완료' } catch { Write-Host '❌ Ollama 다운로드 실패'; exit 1 }"
-    
-    if not exist "%TEMP_DIR%\%OLLAMA_INSTALLER%" (
+
+    powershell -Command "& {try {Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '%OLLAMA_PATH%' -ErrorAction Stop; Write-Host '✅ Ollama 다운로드 완료'} catch {Write-Host '❌ Ollama 다운로드 실패: ' + $_.Exception.Message; exit 1}}"
+
+    if not exist "%OLLAMA_PATH%" (
         echo ❌ Ollama 다운로드 실패
         echo   수동으로 https://ollama.com/download 에서 설치하세요.
         echo %date% %time% - Ollama 다운로드 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
+
     echo 🔧 Ollama 설치 중... (2-5분 소요)
     echo %date% %time% - Ollama 설치 시작 >> "%LOG_FILE%"
-    
-    "%TEMP_DIR%\%OLLAMA_INSTALLER%" /S
+
+    "%OLLAMA_PATH%" /S
     set OLLAMA_INSTALL_RESULT=%errorlevel%
-    
+
     echo 🧹 Ollama 설치 파일 정리 중...
-    call :safe_delete "%TEMP_DIR%\%OLLAMA_INSTALLER%"
-    
+    if exist "%OLLAMA_PATH%" (
+        del "%OLLAMA_PATH%" >nul 2>&1
+    )
+
     if %OLLAMA_INSTALL_RESULT% neq 0 (
         echo ❌ Ollama 설치 실패 (오류 코드: %OLLAMA_INSTALL_RESULT%)
         echo %date% %time% - Ollama 설치 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
+
     echo ⏱️ Ollama 서비스 시작 대기 중... (30초)
     timeout /t 30 /nobreak >nul
-    
+
     call :refresh_path
-    
+
     ollama --version >nul 2>&1
     if %errorlevel% neq 0 (
         echo ❌ Ollama 설치 후에도 인식되지 않습니다.
@@ -192,7 +215,7 @@ if %errorlevel% neq 0 (
         echo %date% %time% - Ollama PATH 설정 실패 >> "%LOG_FILE%"
         goto :install_error
     )
-    
+
     echo ✅ Ollama 설치 완료!
     echo %date% %time% - Ollama 설치 완료 >> "%LOG_FILE%"
 ) else (
@@ -210,20 +233,24 @@ echo ⏱️ 서비스 시작 대기 중... (15초)
 timeout /t 15 /nobreak >nul
 
 :: 연결 확인 (여러 번 시도)
+set OLLAMA_CONNECTED=0
 for /l %%i in (1,1,5) do (
-    curl -s -m 5 http://localhost:11434/ >nul 2>&1
+    echo 연결 시도 %%i/5...
+    powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
     if !errorlevel! equ 0 (
         echo ✅ Ollama 서비스 정상 작동 중
+        set OLLAMA_CONNECTED=1
         goto :ollama_running
     )
-    echo 연결 시도 %%i/5...
     timeout /t 3 /nobreak >nul
 )
 
-echo ❌ Ollama 서비스 시작 실패
-echo   수동으로 'ollama serve' 명령어를 실행하세요.
-echo %date% %time% - Ollama 서비스 시작 실패 >> "%LOG_FILE%"
-goto :install_error
+if %OLLAMA_CONNECTED% equ 0 (
+    echo ❌ Ollama 서비스 시작 실패
+    echo   수동으로 'ollama serve' 명령어를 실행하세요.
+    echo %date% %time% - Ollama 서비스 시작 실패 >> "%LOG_FILE%"
+    goto :install_error
+)
 
 :ollama_running
 echo %date% %time% - Ollama 서비스 정상 시작 >> "%LOG_FILE%"
@@ -324,32 +351,7 @@ echo ✅ 가상환경 활성화 완료
 echo 📚 Python 패키지 설치 중...
 echo %date% %time% - 패키지 설치 시작 >> "%LOG_FILE%"
 
-if exist requirements-minimal.txt (
-    echo 최소 패키지부터 설치 시도...
-    pip install -r requirements-minimal.txt --quiet --no-warn-script-location
-    set MINIMAL_RESULT=%errorlevel%
-) else (
-    set MINIMAL_RESULT=1
-)
-
-if !MINIMAL_RESULT! neq 0 (
-    if exist requirements-windows.txt (
-        echo Windows 전용 패키지로 설치 시도...
-        pip install -r requirements-windows.txt --quiet --no-warn-script-location
-        set WINDOWS_RESULT=%errorlevel%
-    ) else (
-        set WINDOWS_RESULT=1
-    )
-    
-    if !WINDOWS_RESULT! neq 0 (
-        echo 개별 패키지 설치로 전환...
-        call :install_core_packages
-    ) else (
-        echo ✅ Windows 전용 패키지 설치 완료
-    )
-) else (
-    echo ✅ 최소 패키지 설치 완료
-)
+call :install_packages
 
 echo %date% %time% - 패키지 설치 완료 >> "%LOG_FILE%"
 
@@ -462,7 +464,7 @@ echo 🚀 서버 시작 중...
 echo.
 
 :: 5초 후 브라우저 자동 열기
-start "" timeout /t 5 /nobreak && start http://localhost:8000
+start "" cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:8000"
 
 :: 서버 시작 (우선순위: start.bat > run-daphne.bat > manage.py runserver)
 if exist start.bat (
@@ -503,42 +505,83 @@ goto :end
 :: 함수 정의 구역
 :: =================================================================
 
-:safe_delete
-set "FILE_TO_DELETE=%~1"
-if exist "%FILE_TO_DELETE%" (
-    for /l %%i in (1,1,10) do (
-        del "%FILE_TO_DELETE%" >nul 2>&1
-        if not exist "%FILE_TO_DELETE%" goto :delete_success
-        timeout /t 1 /nobreak >nul
-    )
-    echo ⚠️ 파일 삭제 실패: %FILE_TO_DELETE%
-    goto :delete_success
-)
-:delete_success
-exit /b 0
-
 :refresh_path
 :: PATH 환경변수 새로고침
-for /f "tokens=2*" %%i in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PATH') do set "SYSTEM_PATH=%%j"
-for /f "tokens=2*" %%i in ('reg query "HKCU\Environment" /v PATH') do set "USER_PATH=%%j"
-set "PATH=%SYSTEM_PATH%;%USER_PATH%"
+for /f "skip=2 tokens=2*" %%i in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PATH 2^>nul') do set "SYSTEM_PATH=%%j"
+for /f "skip=2 tokens=2*" %%i in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "USER_PATH=%%j"
+if defined SYSTEM_PATH if defined USER_PATH (
+    set "PATH=%SYSTEM_PATH%;%USER_PATH%"
+) else if defined SYSTEM_PATH (
+    set "PATH=%SYSTEM_PATH%"
+)
+exit /b 0
+
+:install_packages
+set PACKAGE_SUCCESS=0
+
+if exist requirements-minimal.txt (
+    echo 최소 패키지부터 설치 시도...
+    pip install -r requirements-minimal.txt --quiet --no-warn-script-location
+    if !errorlevel! equ 0 (
+        echo ✅ 최소 패키지 설치 완료
+        set PACKAGE_SUCCESS=1
+        exit /b 0
+    )
+)
+
+if exist requirements-windows.txt (
+    echo Windows 전용 패키지로 설치 시도...
+    pip install -r requirements-windows.txt --quiet --no-warn-script-location
+    if !errorlevel! equ 0 (
+        echo ✅ Windows 전용 패키지 설치 완료
+        set PACKAGE_SUCCESS=1
+        exit /b 0
+    )
+)
+
+if %PACKAGE_SUCCESS% equ 0 (
+    echo 개별 패키지 설치로 전환...
+    call :install_core_packages
+)
 exit /b 0
 
 :install_core_packages
 echo 핵심 패키지 개별 설치 중...
 set PACKAGE_COUNT=0
 
-set PACKAGES=Django==4.2.7 django-cors-headers==4.3.1 channels==4.0.0 requests==2.31.0 python-dotenv==1.0.0 daphne==4.0.0 paramiko==3.3.1 redis==5.0.1
+echo [1/8] Django 설치 중...
+pip install Django==4.2.7 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-for %%p in (%PACKAGES%) do (
-    echo 설치 중: %%p
-    pip install %%p --quiet --no-warn-script-location
-    if !errorlevel! equ 0 (
-        set /a PACKAGE_COUNT+=1
-    )
-)
+echo [2/8] CORS 헤더 설치 중...
+pip install django-cors-headers==4.3.1 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo 📊 개별 패키지 설치 결과: !PACKAGE_COUNT!개 성공
+echo [3/8] WebSocket 지원 설치 중...
+pip install channels==4.0.0 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo [4/8] HTTP 클라이언트 설치 중...
+pip install requests==2.31.0 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo [5/8] 환경 변수 지원 설치 중...
+pip install python-dotenv==1.0.0 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo [6/8] ASGI 서버 설치 중...
+pip install daphne==4.0.0 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo [7/8] SSH 연결 지원 설치 중...
+pip install paramiko==3.3.1 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo [8/8] Redis 클라이언트 설치 중...
+pip install redis==5.0.1 --quiet --no-warn-script-location
+if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
+
+echo 📊 개별 패키지 설치 결과: !PACKAGE_COUNT!/8 성공
 exit /b 0
 
 :create_env_file
@@ -556,7 +599,7 @@ echo # XShell Integration
 echo XSHELL_PATH=C:\Program Files\NetSarang\Xshell 8\Xshell.exe
 echo XSHELL_SESSIONS_PATH=C:\Users\%USERNAME%\Documents\NetSarang Computer\8\Xshell\Sessions
 echo.
-echo # AI Backend ^(Ollama^)
+echo # AI Backend (Ollama^)
 echo OLLAMA_BASE_URL=http://localhost:11434
 echo DEFAULT_AI_MODEL=llama3.1:8b
 echo CODE_AI_MODEL=codellama:13b
@@ -584,7 +627,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [2/4] Ollama 연결 테스트...
-curl -s -m 5 http://localhost:11434/api/tags >nul 2>&1
+powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
 if %errorlevel% neq 0 (
     echo ❌ Ollama 연결 오류
     exit /b 1
@@ -623,7 +666,7 @@ goto :end
 :user_exit
 echo.
 echo 👋 설치를 취소했습니다.
-echo    나중에 install-all-in-one.bat을 다시 실행하세요.
+echo    나중에 install-all-in-one-improved.bat을 다시 실행하세요.
 echo.
 echo %date% %time% - 사용자가 설치 취소 >> "%LOG_FILE%"
 
