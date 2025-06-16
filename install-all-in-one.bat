@@ -135,9 +135,13 @@ if %errorlevel% neq 0 (
     
     echo ✅ Python installation completed successfully
 ) else (
-    for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-    echo ✅ Python found: %PYTHON_VERSION%
+    echo ✅ Python found and working
 )
+
+:: Simple Python version display
+echo.
+echo Python version check:
+python --version
 
 echo.
 echo Upgrading pip...
@@ -216,8 +220,12 @@ if %errorlevel% neq 0 (
     echo ✅ Ollama installation completed successfully
 ) else (
     echo ✅ Ollama already installed
-    ollama --version
 )
+
+:: Simple Ollama version display
+echo.
+echo Ollama version check:
+ollama --version
 
 echo.
 echo Starting Ollama service...
