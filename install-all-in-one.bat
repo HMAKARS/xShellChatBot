@@ -1,470 +1,376 @@
 @echo off
-:: XShell AI 챗봇 All-in-One 설치 스크립트 (완전 수정 버전)
-:: 모든 오류 해결
+:: XShell AI Chatbot All-in-One Installer (Final Fixed Version)
+:: Completely rewritten for maximum stability
 
-setlocal enabledelayedexpansion
 chcp 65001 >nul
 cls
 
-:: 전역 변수 설정 (문제 해결)
-set "SCRIPT_DIR=%~dp0"
-set "TEMP_DIR=%SCRIPT_DIR%temp_install"
-set "LOG_FILE=%SCRIPT_DIR%install.log"
-set "PYTHON_INSTALLER=python-installer.exe"
-set "OLLAMA_INSTALLER=OllamaSetup.exe"
-
-:: 로그 시작
-echo %date% %time% - XShell AI 챗봇 설치 시작 > "!LOG_FILE!"
-
 echo.
-echo 🚀 XShell AI 챗봇 All-in-One 설치 스크립트 (완전 수정 버전)
-echo ==========================================================
+echo 🚀 XShell AI Chatbot All-in-One Installer
+echo ==========================================
 echo.
-echo 💪 고성능 시스템용 최적화 설치 프로그램
+echo Installing components:
+echo   • Python 3.11 + Virtual Environment
+echo   • Ollama AI Engine + Models
+echo   • Django Web Server + WebSocket
+echo   • XShell Integration + All Config Files
 echo.
-echo 📦 설치할 구성 요소:
-echo   • Python 3.11 + 가상환경 + 의존성 패키지
-echo   • Ollama AI 엔진 + 고성능 모델들
-echo   • Django 웹 서버 + WebSocket 지원
-echo   • XShell 통합 기능 + 모든 설정 파일
-echo.
-echo ⏱️  예상 소요 시간: 15-30분 (인터넷 속도에 따라)
-echo 💾 필요 디스크 공간: 약 15GB
-echo 📁 설치 위치: !SCRIPT_DIR!
+echo Estimated time: 15-30 minutes
+echo Required disk space: ~15GB
 echo.
 
-set /p CONTINUE="전체 설치를 시작하시겠습니까? (Y/n): "
-if /i "!CONTINUE!"=="n" goto :user_exit
+set /p CONTINUE="Start installation? (Y/n): "
+if /i "%CONTINUE%"=="n" goto :user_exit
 
-:: 관리자 권한 확인
-echo 🔐 관리자 권한 확인 중...
+:: Check admin rights
+echo Checking admin rights...
 net session >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ⚠️ 관리자 권한이 필요합니다.
-    echo   이 배치 파일을 우클릭 → "관리자 권한으로 실행"을 선택하세요.
-    echo %date% %time% - 관리자 권한 없음 >> "!LOG_FILE!"
+if %errorlevel% neq 0 (
+    echo ERROR: Admin rights required.
+    echo Right-click this file and select "Run as administrator"
     pause
     exit /b 1
 )
-echo ✅ 관리자 권한 확인됨
-echo %date% %time% - 관리자 권한 확인됨 >> "!LOG_FILE!"
+echo ✅ Admin rights confirmed
 
-:: 임시 디렉토리 생성
-if not exist "!TEMP_DIR!" (
-    mkdir "!TEMP_DIR!"
-    echo 📂 임시 디렉토리 생성: !TEMP_DIR!
-)
+:: Create temp directory
+set TEMP_INSTALL_DIR=%~dp0temp_install
+if not exist "%TEMP_INSTALL_DIR%" mkdir "%TEMP_INSTALL_DIR%"
+echo Temp directory: %TEMP_INSTALL_DIR%
 
 :: =================================================================
-:: 1단계: 시스템 환경 검사
+:: Step 1: System Check
 :: =================================================================
 echo.
-echo 🔍 1단계: 시스템 환경 검사
-echo ==========================
+echo Step 1: System Environment Check
+echo =================================
 
-echo 시스템 정보 확인 중...
-:: 메모리 정보 확인 (개선된 버전)
-powershell -Command "& {try {$mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host \"💾 시스템 메모리: $memGB GB\"} catch {Write-Host \"⚠️ 시스템 메모리 정보를 확인할 수 없습니다.\"}}"
+echo Checking system memory...
+powershell -Command "& {$mem = Get-WmiObject -Class Win32_ComputerSystem; $memGB = [math]::Round($mem.TotalPhysicalMemory / 1GB, 2); Write-Host \"System Memory: $memGB GB\"}"
 
-echo 디스크 공간 확인 중...
-echo 💾 사용 가능한 디스크 공간 확인됨
+echo Checking disk space...
+echo Disk space check completed
 
-echo ✅ 시스템 환경 검사 완료
+echo ✅ System check completed
 
 :: =================================================================
-:: 2단계: Python 설치 및 확인
+:: Step 2: Python Installation
 :: =================================================================
 echo.
-echo 🐍 2단계: Python 설치 및 확인
-echo =============================
+echo Step 2: Python Installation
+echo ============================
 
 python --version >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ Python이 설치되지 않았습니다.
-    echo.
-    echo 📥 Python 자동 설치를 시도합니다...
+if %errorlevel% neq 0 (
+    echo Python not found. Installing...
     
-    :: Python 다운로드 URL과 경로
-    set "PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe"
-    set "PYTHON_PATH=!TEMP_DIR!\!PYTHON_INSTALLER!"
+    set PYTHON_URL=https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe
+    set PYTHON_FILE=%TEMP_INSTALL_DIR%\python-installer.exe
     
-    echo 📥 Python 설치 파일 다운로드 중...
-    echo %date% %time% - Python 다운로드 시작 >> "!LOG_FILE!"
+    echo Downloading Python installer...
+    powershell -Command "& {Invoke-WebRequest -Uri '%PYTHON_URL%' -OutFile '%PYTHON_FILE%'}"
     
-    :: PowerShell을 사용한 다운로드
-    powershell -Command "& {try {$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '!PYTHON_URL!' -OutFile '!PYTHON_PATH!' -ErrorAction Stop; Write-Host '✅ Python 다운로드 완료'} catch {Write-Host '❌ Python 다운로드 실패:' $_.Exception.Message; exit 1}}"
-    
-    if not exist "!PYTHON_PATH!" (
-        echo ❌ Python 다운로드 실패
-        echo   수동으로 https://python.org/downloads/ 에서 설치하세요.
-        echo %date% %time% - Python 다운로드 실패 >> "!LOG_FILE!"
+    if not exist "%PYTHON_FILE%" (
+        echo ERROR: Python download failed
+        echo Please download manually from https://python.org/downloads/
         goto :install_error
     )
     
-    echo 🔧 Python 설치 중... (2-5분 소요)
-    echo %date% %time% - Python 설치 시작 >> "!LOG_FILE!"
+    echo Installing Python (this may take 2-5 minutes)...
+    "%PYTHON_FILE%" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
     
-    :: 설치 실행
-    "!PYTHON_PATH!" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
-    set PYTHON_INSTALL_RESULT=!errorlevel!
+    echo Cleaning up installer...
+    if exist "%PYTHON_FILE%" del "%PYTHON_FILE%" >nul 2>&1
     
-    echo 🧹 Python 설치 파일 정리 중...
-    if exist "!PYTHON_PATH!" (
-        del "!PYTHON_PATH!" >nul 2>&1
-        if exist "!PYTHON_PATH!" (
-            echo ⚠️ 설치 파일 삭제 지연, 계속 진행합니다.
-        )
-    )
-    
-    if !PYTHON_INSTALL_RESULT! neq 0 (
-        echo ❌ Python 설치 실패 (오류 코드: !PYTHON_INSTALL_RESULT!)
-        echo %date% %time% - Python 설치 실패 >> "!LOG_FILE!"
-        goto :install_error
-    )
-    
-    echo 🔄 환경 변수 새로고침 중...
-    call :refresh_path
-    
-    echo ⏱️ Python 인식 대기 중... (10초)
+    echo Waiting for Python to be recognized...
     timeout /t 10 /nobreak >nul
     
     python --version >nul 2>&1
-    if !errorlevel! neq 0 (
-        echo ❌ Python 설치 후에도 인식되지 않습니다.
-        echo   시스템을 재시작한 후 다시 시도하세요.
-        echo %date% %time% - Python PATH 설정 실패 >> "!LOG_FILE!"
+    if %errorlevel% neq 0 (
+        echo ERROR: Python installation failed
+        echo Please restart your computer and try again
         goto :install_error
     )
     
-    echo ✅ Python 설치 완료!
-    echo %date% %time% - Python 설치 완료 >> "!LOG_FILE!"
+    echo ✅ Python installation completed
 ) else (
     for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYTHON_VERSION=%%i
-    echo ✅ Python !PYTHON_VERSION! 확인됨
-    echo %date% %time% - Python !PYTHON_VERSION! 확인됨 >> "!LOG_FILE!"
+    echo ✅ Python found: !PYTHON_VERSION!
 )
 
-:: pip 업그레이드
-echo 📈 pip 업그레이드 중...
-python -m pip install --upgrade pip --quiet --no-warn-script-location
-echo ✅ pip 업그레이드 완료
+:: Upgrade pip
+echo Upgrading pip...
+python -m pip install --upgrade pip --quiet
+echo ✅ pip upgrade completed
 
 :: =================================================================
-:: 3단계: Ollama 설치
+:: Step 3: Ollama Installation
 :: =================================================================
 echo.
-echo 🤖 3단계: Ollama AI 엔진 설치
-echo =============================
+echo Step 3: Ollama AI Engine Installation
+echo ======================================
 
 ollama --version >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ Ollama가 설치되지 않았습니다.
-    echo.
-    echo 📥 Ollama 자동 설치를 시도합니다...
+if %errorlevel% neq 0 (
+    echo Ollama not found. Installing...
     
-    set "OLLAMA_PATH=!TEMP_DIR!\!OLLAMA_INSTALLER!"
+    set OLLAMA_FILE=%TEMP_INSTALL_DIR%\OllamaSetup.exe
     
-    echo 📥 Ollama 설치 파일 다운로드 중...
-    echo %date% %time% - Ollama 다운로드 시작 >> "!LOG_FILE!"
+    echo Downloading Ollama installer...
+    powershell -Command "& {Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '%OLLAMA_FILE%'}"
     
-    powershell -Command "& {try {$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri 'https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe' -OutFile '!OLLAMA_PATH!' -ErrorAction Stop; Write-Host '✅ Ollama 다운로드 완료'} catch {Write-Host '❌ Ollama 다운로드 실패:' $_.Exception.Message; exit 1}}"
-    
-    if not exist "!OLLAMA_PATH!" (
-        echo ❌ Ollama 다운로드 실패
-        echo   수동으로 https://ollama.com/download 에서 설치하세요.
-        echo %date% %time% - Ollama 다운로드 실패 >> "!LOG_FILE!"
+    if not exist "%OLLAMA_FILE%" (
+        echo ERROR: Ollama download failed
+        echo Please download manually from https://ollama.com/download
         goto :install_error
     )
     
-    echo 🔧 Ollama 설치 중... (2-5분 소요)
-    echo %date% %time% - Ollama 설치 시작 >> "!LOG_FILE!"
+    echo Installing Ollama (this may take 2-5 minutes)...
+    "%OLLAMA_FILE%" /S
     
-    "!OLLAMA_PATH!" /S
-    set OLLAMA_INSTALL_RESULT=!errorlevel!
+    echo Cleaning up installer...
+    if exist "%OLLAMA_FILE%" del "%OLLAMA_FILE%" >nul 2>&1
     
-    echo 🧹 Ollama 설치 파일 정리 중...
-    if exist "!OLLAMA_PATH!" (
-        del "!OLLAMA_PATH!" >nul 2>&1
-    )
-    
-    if !OLLAMA_INSTALL_RESULT! neq 0 (
-        echo ❌ Ollama 설치 실패 (오류 코드: !OLLAMA_INSTALL_RESULT!)
-        echo %date% %time% - Ollama 설치 실패 >> "!LOG_FILE!"
-        goto :install_error
-    )
-    
-    echo ⏱️ Ollama 서비스 시작 대기 중... (30초)
+    echo Waiting for Ollama service...
     timeout /t 30 /nobreak >nul
     
-    call :refresh_path
-    
     ollama --version >nul 2>&1
-    if !errorlevel! neq 0 (
-        echo ❌ Ollama 설치 후에도 인식되지 않습니다.
-        echo   시스템을 재시작한 후 다시 시도하세요.
-        echo %date% %time% - Ollama PATH 설정 실패 >> "!LOG_FILE!"
+    if %errorlevel% neq 0 (
+        echo ERROR: Ollama installation failed
+        echo Please restart your computer and try again
         goto :install_error
     )
     
-    echo ✅ Ollama 설치 완료!
-    echo %date% %time% - Ollama 설치 완료 >> "!LOG_FILE!"
+    echo ✅ Ollama installation completed
 ) else (
-    echo ✅ Ollama가 이미 설치되어 있습니다
+    echo ✅ Ollama already installed
     ollama --version
-    echo %date% %time% - Ollama 이미 설치됨 >> "!LOG_FILE!"
 )
 
-:: Ollama 서비스 시작
-echo 🔄 Ollama 서비스 시작 중...
+:: Start Ollama service
+echo Starting Ollama service...
 taskkill /f /im ollama.exe >nul 2>&1
 start /min "Ollama Service" ollama serve
 
-echo ⏱️ 서비스 시작 대기 중... (15초)
+echo Waiting for service to start...
 timeout /t 15 /nobreak >nul
 
-:: 연결 확인 (여러 번 시도)
-set OLLAMA_CONNECTED=0
+:: Check Ollama connection
+set OLLAMA_OK=0
 for /l %%i in (1,1,5) do (
-    echo 연결 시도 %%i/5...
+    echo Connection attempt %%i/5...
     powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
     if !errorlevel! equ 0 (
-        echo ✅ Ollama 서비스 정상 작동 중
-        set OLLAMA_CONNECTED=1
-        goto :ollama_running
+        echo ✅ Ollama service running
+        set OLLAMA_OK=1
+        goto :ollama_ready
     )
     timeout /t 3 /nobreak >nul
 )
 
-if !OLLAMA_CONNECTED! equ 0 (
-    echo ❌ Ollama 서비스 시작 실패
-    echo   수동으로 'ollama serve' 명령어를 실행하세요.
-    echo %date% %time% - Ollama 서비스 시작 실패 >> "!LOG_FILE!"
+if %OLLAMA_OK% equ 0 (
+    echo ERROR: Ollama service failed to start
+    echo Please run 'ollama serve' manually
     goto :install_error
 )
 
-:ollama_running
-echo %date% %time% - Ollama 서비스 정상 시작 >> "!LOG_FILE!"
+:ollama_ready
 
 :: =================================================================
-:: 4단계: AI 모델 설치
+:: Step 4: AI Models Installation
 :: =================================================================
 echo.
-echo 🧠 4단계: AI 모델 설치
-echo ====================
+echo Step 4: AI Models Installation
+echo ===============================
 echo.
-echo 💡 고성능 AI 모델들을 설치합니다:
-echo   • llama3.1:8b (4.7GB) - 일반 대화용 고성능 모델
-echo   • codellama:13b (7GB) - 코드 분석용 전문 모델
+echo Installing high-performance AI models:
+echo   • llama3.1:8b (4.7GB) - General conversation
+echo   • codellama:13b (7GB) - Code analysis
 echo.
 
 set MODEL_COUNT=0
 
-echo [1/2] llama3.1:8b 모델 설치 중... (약 4.7GB)
-echo %date% %time% - llama3.1:8b 모델 설치 시작 >> "!LOG_FILE!"
+echo [1/2] Installing llama3.1:8b model (about 4.7GB)...
 ollama list | findstr "llama3.1:8b" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo 📥 다운로드 시작... (5-10분 소요 예상)
+if %errorlevel% neq 0 (
+    echo Download starting... (5-10 minutes expected)
     ollama pull llama3.1:8b
     if !errorlevel! equ 0 (
-        echo ✅ llama3.1:8b 설치 완료!
+        echo ✅ llama3.1:8b installation completed
         set /a MODEL_COUNT+=1
-        echo %date% %time% - llama3.1:8b 모델 설치 완료 >> "!LOG_FILE!"
     ) else (
-        echo ❌ llama3.1:8b 설치 실패
-        echo %date% %time% - llama3.1:8b 모델 설치 실패 >> "!LOG_FILE!"
+        echo ❌ llama3.1:8b installation failed
     )
 ) else (
-    echo ✅ llama3.1:8b 이미 설치됨
+    echo ✅ llama3.1:8b already installed
     set /a MODEL_COUNT+=1
-    echo %date% %time% - llama3.1:8b 모델 이미 설치됨 >> "!LOG_FILE!"
 )
 
-echo [2/2] codellama:13b 모델 설치 중... (약 7GB)
-echo %date% %time% - codellama:13b 모델 설치 시작 >> "!LOG_FILE!"
+echo [2/2] Installing codellama:13b model (about 7GB)...
 ollama list | findstr "codellama:13b" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo 📥 다운로드 시작... (7-15분 소요 예상)
+if %errorlevel% neq 0 (
+    echo Download starting... (7-15 minutes expected)
     ollama pull codellama:13b
     if !errorlevel! equ 0 (
-        echo ✅ codellama:13b 설치 완료!
+        echo ✅ codellama:13b installation completed
         set /a MODEL_COUNT+=1
-        echo %date% %time% - codellama:13b 모델 설치 완료 >> "!LOG_FILE!"
     ) else (
-        echo ❌ codellama:13b 설치 실패
-        echo %date% %time% - codellama:13b 모델 설치 실패 >> "!LOG_FILE!"
+        echo ❌ codellama:13b installation failed
     )
 ) else (
-    echo ✅ codellama:13b 이미 설치됨
+    echo ✅ codellama:13b already installed
     set /a MODEL_COUNT+=1
-    echo %date% %time% - codellama:13b 모델 이미 설치됨 >> "!LOG_FILE!"
 )
 
 echo.
-echo 📊 AI 모델 설치 결과: !MODEL_COUNT!개 설치 완료
-echo 설치된 모델 목록:
+echo AI Models installation result: %MODEL_COUNT% models installed
+echo Installed models:
 ollama list
 
 :: =================================================================
-:: 5단계: Python 가상환경 및 패키지 설치
+:: Step 5: Python Environment Setup
 :: =================================================================
 echo.
-echo 🐍 5단계: Python 환경 설정
-echo ==========================
+echo Step 5: Python Environment Setup
+echo =================================
 
-:: 가상환경 생성
+:: Create virtual environment
 if not exist .venv (
-    echo 📦 가상환경 생성 중...
+    echo Creating virtual environment...
     python -m venv .venv
-    if !errorlevel! neq 0 (
-        echo ❌ 가상환경 생성 실패
-        echo %date% %time% - 가상환경 생성 실패 >> "!LOG_FILE!"
+    if %errorlevel% neq 0 (
+        echo ERROR: Virtual environment creation failed
         goto :install_error
     )
-    echo ✅ 가상환경 생성 완료
-    echo %date% %time% - 가상환경 생성 완료 >> "!LOG_FILE!"
+    echo ✅ Virtual environment created
 ) else (
-    echo ✅ 가상환경이 이미 존재합니다
-    echo %date% %time% - 가상환경 이미 존재 >> "!LOG_FILE!"
+    echo ✅ Virtual environment already exists
 )
 
-:: 가상환경 활성화
-echo 🔄 가상환경 활성화 중...
+:: Activate virtual environment
+echo Activating virtual environment...
 call .venv\Scripts\activate.bat
-if !errorlevel! neq 0 (
-    echo ❌ 가상환경 활성화 실패
-    echo %date% %time% - 가상환경 활성화 실패 >> "!LOG_FILE!"
+if %errorlevel% neq 0 (
+    echo ERROR: Virtual environment activation failed
     goto :install_error
 )
-echo ✅ 가상환경 활성화 완료
+echo ✅ Virtual environment activated
 
-:: 패키지 설치
-echo 📚 Python 패키지 설치 중...
-echo %date% %time% - 패키지 설치 시작 >> "!LOG_FILE!"
-
+:: Install packages
+echo Installing Python packages...
 call :install_packages
 
-echo %date% %time% - 패키지 설치 완료 >> "!LOG_FILE!"
-
 :: =================================================================
-:: 6단계: 환경 설정 파일 생성
+:: Step 6: Configuration Files
 :: =================================================================
 echo.
-echo 📄 6단계: 환경 설정 파일 생성
-echo =============================
+echo Step 6: Configuration Files Setup
+echo ==================================
 
 if not exist .env (
     if exist .env.example (
-        echo 📝 .env.example에서 .env 파일 생성 중...
+        echo Creating .env file from template...
         copy .env.example .env >nul
-        echo ✅ .env 파일 생성 완료
+        echo ✅ .env file created
     ) else (
-        echo 📝 새로운 .env 파일 생성 중...
+        echo Creating new .env file...
         call :create_env_file
-        echo ✅ .env 파일 생성 완료
+        echo ✅ .env file created
     )
 ) else (
-    echo ✅ .env 파일이 이미 존재합니다
+    echo ✅ .env file already exists
 )
 
-echo %date% %time% - 환경 설정 파일 생성 완료 >> "!LOG_FILE!"
-
 :: =================================================================
-:: 7단계: 데이터베이스 설정
+:: Step 7: Database Setup
 :: =================================================================
 echo.
-echo 🗄️ 7단계: 데이터베이스 설정
-echo ===========================
+echo Step 7: Database Setup
+echo ======================
 
-echo 📂 필요한 디렉토리 생성 중...
+echo Creating required directories...
 if not exist logs mkdir logs
 if not exist static mkdir static
 if not exist templates mkdir templates
 if not exist media mkdir media
-echo ✅ 디렉토리 생성 완료
+echo ✅ Directories created
 
-echo 🗄️ 데이터베이스 설정 중...
+echo Setting up database...
 python manage.py check --verbosity=0 >nul 2>&1
 python manage.py makemigrations --verbosity=0 >nul 2>&1
 python manage.py migrate --verbosity=0
-if !errorlevel! neq 0 (
-    echo ❌ 데이터베이스 설정 실패
-    echo %date% %time% - 데이터베이스 설정 실패 >> "!LOG_FILE!"
+if %errorlevel% neq 0 (
+    echo ERROR: Database setup failed
     goto :install_error
 )
-echo ✅ 데이터베이스 설정 완료
-echo %date% %time% - 데이터베이스 설정 완료 >> "!LOG_FILE!"
+echo ✅ Database setup completed
 
 :: =================================================================
-:: 8단계: 시스템 테스트
+:: Step 8: System Test
 :: =================================================================
 echo.
-echo 🧪 8단계: 시스템 테스트
-echo ====================
+echo Step 8: System Test
+echo ===================
 
-echo 🔍 전체 시스템 검증 중...
+echo Testing complete system...
 
 call :test_system
-if !errorlevel! neq 0 (
-    echo ❌ 시스템 테스트 실패
-    set /p CONTINUE_ANYWAY="문제를 무시하고 계속하시겠습니까? (y/N): "
+if %errorlevel% neq 0 (
+    echo ❌ System test failed
+    set /p CONTINUE_ANYWAY="Ignore errors and continue? (y/N): "
     if /i "!CONTINUE_ANYWAY!" neq "y" (
-        echo 설치를 중단합니다.
-        echo %date% %time% - 사용자가 테스트 실패로 설치 중단 >> "!LOG_FILE!"
+        echo Installation aborted
         goto :install_error
     )
 ) else (
-    echo ✅ 모든 테스트 통과!
-    echo %date% %time% - 시스템 테스트 통과 >> "!LOG_FILE!"
+    echo ✅ All tests passed!
 )
 
 :: =================================================================
-:: 9단계: 설치 완료
+:: Step 9: Installation Complete
 :: =================================================================
 echo.
-echo 🎉 9단계: 설치 완료!
-echo ====================
+echo Step 9: Installation Complete!
+echo ===============================
 echo.
-echo ✅ 설치된 구성 요소:
-echo   • Python 3.11 + 가상환경
-echo   • Django 웹 프레임워크
-echo   • Ollama AI 엔진
-echo   • AI 모델: llama3.1:8b, codellama:13b
-echo   • WebSocket 실시간 채팅
-echo   • 데이터베이스 (SQLite)
-echo   • 모든 설정 파일
+echo ✅ Installed components:
+echo   • Python 3.11 + Virtual Environment
+echo   • Django Web Framework
+echo   • Ollama AI Engine
+echo   • AI Models: llama3.1:8b, codellama:13b
+echo   • WebSocket Real-time Chat
+echo   • Database (SQLite)
+echo   • All Configuration Files
 echo.
-echo 🚀 고성능 설정:
-echo   • 기본 AI 모델: llama3.1:8b
-echo   • 코드 AI 모델: codellama:13b
-echo   • 동시 모델 로딩: 2개
-echo   • 컨텍스트 길이: 8192 토큰
-echo.
-
-:: 임시 디렉토리 정리
-if exist "!TEMP_DIR!" rmdir /s /q "!TEMP_DIR!" >nul 2>&1
-
-set /p START_SERVER="지금 바로 서버를 시작하시겠습니까? (Y/n): "
-if /i "!START_SERVER!"=="n" goto :manual_start
-
-echo.
-echo 🚀 서버 시작 중...
+echo 🚀 High-performance settings:
+echo   • Default AI Model: llama3.1:8b
+echo   • Code AI Model: codellama:13b
+echo   • Simultaneous Model Loading: 2
+echo   • Context Length: 8192 tokens
 echo.
 
-:: 5초 후 브라우저 자동 열기
+:: Clean up temp directory
+if exist "%TEMP_INSTALL_DIR%" rmdir /s /q "%TEMP_INSTALL_DIR%" >nul 2>&1
+
+set /p START_SERVER="Start server now? (Y/n): "
+if /i "%START_SERVER%"=="n" goto :manual_start
+
+echo.
+echo Starting server...
+echo.
+
+:: Open browser after 5 seconds
 start "" cmd /c "timeout /t 5 /nobreak >nul && start http://localhost:8000"
 
-:: 서버 시작
+:: Start server
 if exist start.bat (
-    echo start.bat을 사용해서 서버를 시작합니다...
-    echo %date% %time% - start.bat으로 서버 시작 >> "!LOG_FILE!"
+    echo Using start.bat to start server...
     call start.bat
 ) else if exist run-daphne.bat (
-    echo run-daphne.bat을 사용해서 서버를 시작합니다...
-    echo %date% %time% - run-daphne.bat으로 서버 시작 >> "!LOG_FILE!"
+    echo Using run-daphne.bat to start server...
     call run-daphne.bat
 ) else (
-    echo Django 개발 서버로 시작합니다...
-    echo %date% %time% - Django runserver로 서버 시작 >> "!LOG_FILE!"
+    echo Starting Django development server...
     python manage.py runserver 0.0.0.0:8000
 )
 
@@ -472,101 +378,91 @@ goto :end
 
 :manual_start
 echo.
-echo 📋 수동 시작 방법:
-echo ================
+echo Manual start instructions:
+echo =========================
 echo.
-echo 1. 서버 시작: start.bat
-echo 2. 브라우저 접속: http://localhost:8000
-echo 3. AI 상태 확인: check-ollama-quick.bat
+echo 1. Start server: start.bat
+echo 2. Open browser: http://localhost:8000
+echo 3. Check AI status: check-ollama-quick.bat
 echo.
 
 goto :end
 
 :: =================================================================
-:: 함수 정의 구역
+:: Function Definitions
 :: =================================================================
-
-:refresh_path
-for /f "skip=2 tokens=2*" %%i in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v PATH 2^>nul') do set "SYSTEM_PATH=%%j"
-for /f "skip=2 tokens=2*" %%i in ('reg query "HKCU\Environment" /v PATH 2^>nul') do set "USER_PATH=%%j"
-if defined SYSTEM_PATH if defined USER_PATH (
-    set "PATH=!SYSTEM_PATH!;!USER_PATH!"
-) else if defined SYSTEM_PATH (
-    set "PATH=!SYSTEM_PATH!"
-)
-exit /b 0
 
 :install_packages
 set PACKAGE_SUCCESS=0
 
 if exist requirements-minimal.txt (
-    echo 최소 패키지부터 설치 시도...
-    pip install -r requirements-minimal.txt --quiet --no-warn-script-location
+    echo Trying minimal packages first...
+    pip install -r requirements-minimal.txt --quiet
     if !errorlevel! equ 0 (
-        echo ✅ 최소 패키지 설치 완료
+        echo ✅ Minimal packages installed
         set PACKAGE_SUCCESS=1
         exit /b 0
     )
 )
 
 if exist requirements-windows.txt (
-    echo Windows 전용 패키지로 설치 시도...
-    pip install -r requirements-windows.txt --quiet --no-warn-script-location
+    echo Trying Windows-specific packages...
+    pip install -r requirements-windows.txt --quiet
     if !errorlevel! equ 0 (
-        echo ✅ Windows 전용 패키지 설치 완료
+        echo ✅ Windows packages installed
         set PACKAGE_SUCCESS=1
         exit /b 0
     )
 )
 
-if !PACKAGE_SUCCESS! equ 0 (
-    echo 개별 패키지 설치로 전환...
+if %PACKAGE_SUCCESS% equ 0 (
+    echo Installing core packages individually...
     call :install_core_packages
 )
 exit /b 0
 
 :install_core_packages
-echo 핵심 패키지 개별 설치 중...
+echo Installing core packages individually...
 set PACKAGE_COUNT=0
 
-echo [1/8] Django 설치 중...
-pip install Django==4.2.7 --quiet --no-warn-script-location
+echo [1/8] Django...
+pip install Django==4.2.7 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [2/8] CORS 헤더 설치 중...
-pip install django-cors-headers==4.3.1 --quiet --no-warn-script-location
+echo [2/8] CORS headers...
+pip install django-cors-headers==4.3.1 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [3/8] WebSocket 지원 설치 중...
-pip install channels==4.0.0 --quiet --no-warn-script-location
+echo [3/8] WebSocket support...
+pip install channels==4.0.0 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [4/8] HTTP 클라이언트 설치 중...
-pip install requests==2.31.0 --quiet --no-warn-script-location
+echo [4/8] HTTP client...
+pip install requests==2.31.0 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [5/8] 환경 변수 지원 설치 중...
-pip install python-dotenv==1.0.0 --quiet --no-warn-script-location
+echo [5/8] Environment variables...
+pip install python-dotenv==1.0.0 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [6/8] ASGI 서버 설치 중...
-pip install daphne==4.0.0 --quiet --no-warn-script-location
+echo [6/8] ASGI server...
+pip install daphne==4.0.0 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [7/8] SSH 연결 지원 설치 중...
-pip install paramiko==3.3.1 --quiet --no-warn-script-location
+echo [7/8] SSH support...
+pip install paramiko==3.3.1 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo [8/8] Redis 클라이언트 설치 중...
-pip install redis==5.0.1 --quiet --no-warn-script-location
+echo [8/8] Redis client...
+pip install redis==5.0.1 --quiet
 if !errorlevel! equ 0 set /a PACKAGE_COUNT+=1
 
-echo 📊 개별 패키지 설치 결과: !PACKAGE_COUNT!/8 성공
+echo Individual package installation result: %PACKAGE_COUNT%/8 successful
 exit /b 0
 
 :create_env_file
 (
-echo # XShell AI 챗봇 환경 설정
+echo # XShell AI Chatbot Environment Configuration
 echo.
 echo # Django Settings
 echo SECRET_KEY=django-insecure-xshell-chatbot-dev-key-auto-generated
@@ -584,7 +480,7 @@ echo OLLAMA_BASE_URL=http://localhost:11434
 echo DEFAULT_AI_MODEL=llama3.1:8b
 echo CODE_AI_MODEL=codellama:13b
 echo.
-echo # 고성능 AI 옵션
+echo # High-performance AI Options
 echo OLLAMA_MAX_LOADED_MODELS=2
 echo OLLAMA_CONTEXT_LENGTH=8192
 echo OLLAMA_NUM_PARALLEL=4
@@ -599,71 +495,67 @@ echo LOG_LEVEL=INFO
 exit /b 0
 
 :test_system
-echo [1/4] Python 환경 테스트...
-python -c "import django; print('✅ Django 정상')" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ Python 환경 오류
+echo [1/4] Python environment test...
+python -c "import django; print('Django OK')" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: Python environment error
     exit /b 1
 )
 
-echo [2/4] Ollama 연결 테스트...
+echo [2/4] Ollama connection test...
 powershell -Command "try {Invoke-WebRequest -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5 -UseBasicParsing | Out-Null; exit 0} catch {exit 1}" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ Ollama 연결 오류
+if %errorlevel% neq 0 (
+    echo ERROR: Ollama connection error
     exit /b 1
 )
 
-echo [3/4] AI 모델 테스트...
-python -c "import requests; response = requests.post('http://localhost:11434/api/generate', json={'model': 'llama3.1:8b', 'prompt': 'Hi', 'stream': False, 'options': {'num_predict': 5}}, timeout=15); print('✅ AI 모델 정상') if response.status_code == 200 else exit(1)" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ AI 모델 테스트 실패
+echo [3/4] AI model test...
+python -c "import requests; response = requests.post('http://localhost:11434/api/generate', json={'model': 'llama3.1:8b', 'prompt': 'Hi', 'stream': False, 'options': {'num_predict': 5}}, timeout=15); print('AI Model OK') if response.status_code == 200 else exit(1)" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ERROR: AI model test failed
     exit /b 1
 )
 
-echo [4/4] Django 설정 테스트...
+echo [4/4] Django configuration test...
 python manage.py check --verbosity=0 >nul 2>&1
-if !errorlevel! neq 0 (
-    echo ❌ Django 설정 오류
+if %errorlevel% neq 0 (
+    echo ERROR: Django configuration error
     exit /b 1
 )
 
-echo ✅ 모든 시스템 테스트 통과
+echo ✅ All system tests passed
 exit /b 0
 
 :install_error
 echo.
-echo ❌ 설치 중 오류가 발생했습니다.
+echo ERROR: Installation failed
 echo.
-echo 🔧 해결 방법:
-echo   1. 인터넷 연결 확인
-echo   2. 관리자 권한으로 재실행
-echo   3. 바이러스 백신 일시 비활성화
-echo   4. 로그 파일 확인: !LOG_FILE!
+echo Troubleshooting steps:
+echo   1. Check internet connection
+echo   2. Run as administrator
+echo   3. Temporarily disable antivirus
+echo   4. Restart computer and try again
 echo.
-echo %date% %time% - 설치 오류로 종료 >> "!LOG_FILE!"
 goto :end
 
 :user_exit
 echo.
-echo 👋 설치를 취소했습니다.
-echo    나중에 install-all-in-one.bat을 다시 실행하세요.
+echo Installation cancelled by user.
+echo You can run install-all-in-one.bat again later.
 echo.
-echo %date% %time% - 사용자가 설치 취소 >> "!LOG_FILE!"
 
 :end
-:: 임시 디렉토리 정리
-if exist "!TEMP_DIR!" rmdir /s /q "!TEMP_DIR!" >nul 2>&1
+:: Clean up temp directory
+if exist "%TEMP_INSTALL_DIR%" rmdir /s /q "%TEMP_INSTALL_DIR%" >nul 2>&1
 
 echo.
-echo 🎊 XShell AI 챗봇 설치 프로그램 종료
+echo XShell AI Chatbot Installer Finished
 echo.
-echo 💡 추가 정보:
-echo   • 관리자 페이지: http://localhost:8000/admin
-echo   • 설정 파일: .env
-echo   • 로그 파일: !LOG_FILE!
-echo   • 문제 해결: TROUBLESHOOTING-AI.md 참조
+echo Additional information:
+echo   • Admin panel: http://localhost:8000/admin
+echo   • Configuration file: .env
+echo   • Troubleshooting: TROUBLESHOOTING-AI.md
 echo.
-echo 🚀 즐거운 AI 챗봇 사용 되세요!
+echo Enjoy your AI chatbot!
 echo.
-echo %date% %time% - 설치 프로그램 종료 >> "!LOG_FILE!"
 pause
