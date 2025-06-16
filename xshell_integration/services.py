@@ -261,28 +261,30 @@ class XShellService:
         print(f"[XShell] .xsh 파일 {len(xsh_files)}개 발견")
         count = 0
         for file_path in xsh_files:
-            try:
-                config = configparser.ConfigParser()
-                config.read(file_path, encoding='utf-8')
-                host = config.get('CONNECTION', 'Host', fallback=None)
-                port = config.get('CONNECTION', 'Port', fallback=22)
-                username = config.get('CONNECTION:AUTHENTICATION', 'UserName', fallback='')
-                name = os.path.splitext(os.path.basename(file_path))[0]
-                print(f"[XShell] 파싱: {file_path} → host={host}, user={username}, port={port}")
-                if host:
-                    XShellSession.objects.update_or_create(
-                        session_file_path=file_path,
-                        defaults={
-                            "name": name,
-                            "host": host,
-                            "username": username,
-                            "port": int(port)
-                        }
-                    )
-                    count += 1
-            except Exception as e:
-                print(f"[XShell] 파싱 실패: {file_path}, {e}")
-                continue
+            for encoding in ['utf-8', 'utf-16', 'utf-8-sig', 'cp949']:
+                try:
+                    config = configparser.ConfigParser()
+                    config.read(file_path, encoding=encoding)
+                    host = config.get('CONNECTION', 'Host', fallback=None)
+                    port = config.get('CONNECTION', 'Port', fallback=22)
+                    username = config.get('CONNECTION:AUTHENTICATION', 'UserName', fallback='')
+                    name = os.path.splitext(os.path.basename(file_path))[0]
+                    print(f"[XShell] 파싱({encoding}): {file_path} → host={host}, user={username}, port={port}")
+                    if host:
+                        XShellSession.objects.update_or_create(
+                            session_file_path=file_path,
+                            defaults={
+                                "name": name,
+                                "host": host,
+                                "username": username,
+                                "port": int(port)
+                            }
+                        )
+                        count += 1
+                    break  # 성공하면 다음 파일로
+                except Exception as e:
+                    print(f"[XShell] 파싱 실패({encoding}): {file_path}, {e}")
+                    continue
         print(f"[XShell] 최종 동기화 세션 수: {count}")
         return count
     
