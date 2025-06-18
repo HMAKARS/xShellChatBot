@@ -30,12 +30,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     # Third party apps
-    'channels',
     'corsheaders',
     
     # Local apps
     'chatbot',
-    'xshell_integration',
     'ai_backend',
 ]
 
@@ -69,7 +67,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'xshell_chatbot.wsgi.application'
-ASGI_APPLICATION = 'xshell_chatbot.asgi.application'
+
+# Gemini API 설정 추가 (WebSocket 제거)
 
 # Database
 DATABASES = {
@@ -125,42 +124,66 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-# Channels settings - Redis 완전 제거, 메모리만 사용
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+# XShell Integration Settings (선택사항 - 사용하지 않음)
+# XSHELL_PATH = os.getenv('XSHELL_PATH', r'C:\Program Files\NetSarang\Xshell 8\Xshell.exe')
+# XSHELL_SESSIONS_PATH = os.getenv('XSHELL_SESSIONS_PATH', r'C:\Users\{username}\Documents\NetSarang Computer\8\Xshell\Sessions')
 
-# Redis 관련 설정 완전 비활성화
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-#     }
-# }
+# AI Backend Settings - Gemini API
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
 
-# XShell Integration Settings
-XSHELL_PATH = os.getenv('XSHELL_PATH', r'C:\Program Files\NetSarang\Xshell 8\Xshell.exe')
-XSHELL_SESSIONS_PATH = os.getenv('XSHELL_SESSIONS_PATH', r'C:\Users\{username}\Documents\NetSarang Computer\8\Xshell\Sessions')
+# 이전 Ollama 설정은 더 이상 사용되지 않습니다
+# OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+# DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'llama3.1:8b')
+# CODE_AI_MODEL = os.getenv('CODE_AI_MODEL', 'codellama:13b')
 
-# AI Backend Settings - 32GB RAM 고성능 설정
-OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
-DEFAULT_AI_MODEL = os.getenv('DEFAULT_AI_MODEL', 'llama3.1:8b')  # 고성능: 4.7GB (32GB RAM용)
-CODE_AI_MODEL = os.getenv('CODE_AI_MODEL', 'codellama:13b')      # 코드 전문: 7GB
+# 보안 설정
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# 파일 업로드 보안 설정
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
+FILE_UPLOAD_PERMISSIONS = 0o644
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
+
+# API 키 보안 검증
+if not GEMINI_API_KEY and not DEBUG:
+    raise ValueError("GEMINI_API_KEY must be set in production")
 
 # Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'security': {
+            'format': '{asctime} [SECURITY] {levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'logs' / 'xshell_chatbot.log',
+            'formatter': 'verbose',
+        },
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'security.log',
+            'formatter': 'security',
         },
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
@@ -174,9 +197,19 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'security': {
+            'handlers': ['security_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
 # Session settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
+
+# Login settings
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'

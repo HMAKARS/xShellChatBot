@@ -9,7 +9,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('chatbot.urls')),
-    path('api/xshell/', include('xshell_integration.urls')),
+    # path('api/xshell/', include('xshell_integration.urls')),  # 일시 비활성화
     path('api/ai/', include('ai_backend.urls')),
 ]
 
