@@ -134,11 +134,15 @@ class ChatbotHomeView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # 사용자의 세션 목록 가져오기
+        # 메시지가 있는 세션만 가져와서 마지막 메시지 시간 순으로 정렬
+        from django.db.models import Max
         context['chat_sessions'] = ChatSession.objects.filter(
             user=self.request.user, 
-            is_active=True
-        ).order_by('-updated_at')[:10]
+            is_active=True,
+            messages__isnull=False  # 메시지가 있는 세션만
+        ).annotate(
+            last_message_time=Max('messages__timestamp')  # 마지막 메시지 시간
+        ).order_by('-last_message_time')[:10]  # 마지막 대화 시간 순으로 정렬
         
         return context
 

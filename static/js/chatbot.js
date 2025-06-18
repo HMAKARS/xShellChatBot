@@ -13,8 +13,7 @@ class SysintecChatbot {
     
     init() {
         this.setupEventListeners();
-        this.loadChatSessions();
-        this.createNewSession();
+        this.initializeWithTemplateData();
     }
     
     setupEventListeners() {
@@ -75,10 +74,22 @@ class SysintecChatbot {
                 this.saveSettings();
             });
         }
-        // 세션 선택
+        // 세션 선택 및 삭제 (이벤트 위임 사용)
         document.addEventListener('click', (e) => {
+            // 삭제 버튼 클릭 처리
+            if (e.target.closest('.session-delete')) {
+                e.stopPropagation();
+                const sessionItem = e.target.closest('.session-item');
+                const sessionId = sessionItem.dataset.sessionId;
+                console.log('삭제 버튼 클릭:', sessionId); // 디버깅용
+                this.deleteSession(sessionId);
+                return;
+            }
+            
+            // 세션 선택 처리
             if (e.target.closest('.session-item')) {
                 const sessionId = e.target.closest('.session-item').dataset.sessionId;
+                console.log('세션 선택:', sessionId); // 디버깅용
                 this.switchToSession(sessionId);
             }
         });
@@ -93,9 +104,43 @@ class SysintecChatbot {
         messageInput.value = '';
         messageInput.style.height = 'auto';
 
+        // 세션이 없으면 새로 생성
         if (!this.currentSessionId) {
-            this.showError('세션이 생성되지 않았습니다.');
-            return;
+            try {
+                const response = await fetch('/api/session/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken()
+                    },
+                    body: JSON.stringify({ title: message.substring(0, 30) + '...' })
+                });
+                
+                if (response.status === 401) {
+                    window.location.href = '/login/';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.currentSessionId = data.session_id;
+                    this.updateSessionTitle(data.title);
+                    this.addSessionToList(data);
+                    // 환영 메시지 숨기기
+                    const welcomeMessage = document.querySelector('.welcome-message');
+                    if (welcomeMessage) {
+                        welcomeMessage.style.display = 'none';
+                    }
+                } else {
+                    this.showError('세션 생성에 실패했습니다.');
+                    return;
+                }
+            } catch (error) {
+                console.error('세션 생성 실패:', error);
+                this.showError('세션을 생성할 수 없습니다.');
+                return;
+            }
         }
         
         // 전송 버튼 비활성화
@@ -313,6 +358,30 @@ class SysintecChatbot {
         }
     }
     
+    initializeWithTemplateData() {
+        // 템플릿에서 전달된 세션 데이터 확인
+        const sessionItems = document.querySelectorAll('#chatSessionList .session-item');
+        
+        if (sessionItems.length === 0) {
+            // 메시지가 있는 세션이 없으면 환영 메시지만 표시
+            this.showWelcomeMessage();
+            console.log('세션이 없음: 환영 메시지 표시');
+        } else {
+            // 첫 번째 세션은 마지막으로 대화한 세션 (메시지가 있는 세션)
+            const firstSessionItem = sessionItems[0];
+            const sessionId = firstSessionItem.dataset.sessionId;
+            const sessionTitleElement = firstSessionItem.querySelector('.session-name');
+            const sessionTitle = sessionTitleElement ? sessionTitleElement.textContent.trim() : 'Sysintec Chatbot';
+            
+            this.currentSessionId = sessionId;
+            this.updateSessionTitle(sessionTitle);
+            this.updateActiveSession(sessionId);
+            this.loadChatHistory(sessionId);
+            
+            console.log('마지막 대화 세션 로드:', sessionTitle, sessionId);
+        }
+    }
+
     async loadChatSessions() {
         try {
             const response = await fetch('/api/sessions/');
@@ -330,15 +399,27 @@ class SysintecChatbot {
                 sessionList.innerHTML = '';
                 
                 if (data.sessions.length === 0) {
+                    // 세션이 없으면 환영 메시지만 표시
                     sessionList.innerHTML = '<div class="text-muted small">채팅 세션이 없습니다</div>';
+                    this.showWelcomeMessage();
                 } else {
+                    // 세션 목록을 사이드바에 표시
                     data.sessions.forEach(session => {
                         this.addSessionToList(session, false);
                     });
+                    
+                    // 가장 최근 세션(첫 번째)을 자동으로 로드
+                    const latestSession = data.sessions[0];
+                    this.currentSessionId = latestSession.session_id;
+                    this.updateSessionTitle(latestSession.title);
+                    this.updateActiveSession(latestSession.session_id);
+                    await this.loadChatHistory(latestSession.session_id);
                 }
             }
         } catch (error) {
             console.error('세션 목록 로드 실패:', error);
+            // 오류 발생 시 환영 메시지 표시
+            this.showWelcomeMessage();
         }
     }
     
@@ -405,11 +486,68 @@ class SysintecChatbot {
         }
     }
     
+    async deleteSession(sessionId) {
+        if (!confirm('이 채팅 세션을 삭제하시겠습니까?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/session/${sessionId}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            });
+            
+            if (response.status === 401) {
+                window.location.href = '/login/';
+                return;
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // DOM에서 세션 아이템 제거
+                const sessionItem = document.querySelector(`[data-session-id="${sessionId}"]`);
+                if (sessionItem) {
+                    sessionItem.remove();
+                }
+                
+                // 현재 세션이 삭제된 경우
+                if (this.currentSessionId === sessionId) {
+                    // 다른 세션이 있으면 첫 번째 세션으로 이동
+                    const remainingSessions = document.querySelectorAll('.session-item');
+                    if (remainingSessions.length > 0) {
+                        const firstSessionId = remainingSessions[0].dataset.sessionId;
+                        this.switchToSession(firstSessionId);
+                    } else {
+                        // 모든 세션이 삭제된 경우
+                        this.currentSessionId = null;
+                        this.clearMessages();
+                        this.showWelcomeMessage();
+                        this.updateSessionTitle('Sysintec Chatbot에 오신 것을 환영합니다!');
+                        
+                        // 빈 메시지 표시
+                        const sessionList = document.getElementById('chatSessionList');
+                        sessionList.innerHTML = '<div class="text-light small" style="color: #ecf0f1 !important;">채팅 세션이 없습니다</div>';
+                    }
+                }
+                
+                this.showSuccess('채팅 세션이 삭제되었습니다.');
+            } else {
+                this.showError(data.error || '세션 삭제에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('세션 삭제 실패:', error);
+            this.showError('세션 삭제 중 오류가 발생했습니다.');
+        }
+    }
+    
     addSessionToList(sessionData, isNew = true) {
         const sessionList = document.getElementById('chatSessionList');
         
-        // "채팅 세션이 없습니다" 메시지 제거
-        const emptyMessage = sessionList.querySelector('.text-muted');
+        // "채팅 세션이 없습니다" 메시지 제거 (템플릿과 동적 생성 모두)
+        const emptyMessage = sessionList.querySelector('.text-muted, .text-light');
         if (emptyMessage) {
             emptyMessage.remove();
         }
@@ -425,8 +563,13 @@ class SysintecChatbot {
         const timeText = isNew ? '방금 전' : new Date(sessionData.updated_at).toLocaleDateString();
         
         sessionDiv.innerHTML = `
-            <div class="session-name">${sessionData.title}</div>
-            <div class="session-time">${timeText}</div>
+            <div class="session-content">
+                <div class="session-name">${sessionData.title}</div>
+                <div class="session-time">${timeText}</div>
+            </div>
+            <div class="session-delete" title="채팅 삭제">
+                <i class="fas fa-trash"></i>
+            </div>
         `;
         
         if (isNew) {
@@ -712,12 +855,46 @@ class SysintecChatbot {
             return;
         }
         
-        if (!this.currentSessionId) {
-            this.showError('세션이 생성되지 않았습니다.');
-            return;
-        }
-        
         const question = document.getElementById('fileQuestion').value.trim() || '이 파일의 내용을 분석해주세요.';
+
+        // 세션이 없으면 새로 생성
+        if (!this.currentSessionId) {
+            try {
+                const response = await fetch('/api/session/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCSRFToken()
+                    },
+                    body: JSON.stringify({ title: `파일 분석: ${this.selectedFile.name}` })
+                });
+                
+                if (response.status === 401) {
+                    window.location.href = '/login/';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    this.currentSessionId = data.session_id;
+                    this.updateSessionTitle(data.title);
+                    this.addSessionToList(data);
+                    // 환영 메시지 숨기기
+                    const welcomeMessage = document.querySelector('.welcome-message');
+                    if (welcomeMessage) {
+                        welcomeMessage.style.display = 'none';
+                    }
+                } else {
+                    this.showError('세션 생성에 실패했습니다.');
+                    return;
+                }
+            } catch (error) {
+                console.error('세션 생성 실패:', error);
+                this.showError('세션을 생성할 수 없습니다.');
+                return;
+            }
+        }
         
         // 업로드 버튼 비활성화 및 로딩 표시
         const uploadBtn = document.getElementById('uploadFileBtn');

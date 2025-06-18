@@ -49,6 +49,10 @@ html, body {
     transition: all 0.2s ease;
     border-left: 3px solid transparent;
     color: #ffffff;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .session-item:hover {
@@ -63,6 +67,11 @@ html, body {
     color: #ffffff;
 }
 
+.session-content {
+    flex: 1;
+    min-width: 0;
+}
+
 .session-name {
     font-weight: 500;
     margin-bottom: 4px;
@@ -75,6 +84,33 @@ html, body {
 .session-time {
     font-size: 0.75rem;
     color: #ecf0f1;
+}
+
+.session-delete {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    padding: 6px;
+    border-radius: 4px;
+    color: #e74c3c;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}
+
+.session-item:hover .session-delete {
+    opacity: 1;
+}
+
+.session-delete:hover {
+    background: rgba(231, 76, 60, 0.2);
+    color: #ffffff;
+    transform: scale(1.1);
 }
 
 .xshell-session-item {
@@ -113,7 +149,7 @@ html, body {
 }
 
 .chat-header .text-muted {
-    color: #ffffff !important;
+    color: #6c757d !important;
     font-weight: 500;
 }
 
@@ -198,6 +234,7 @@ html, body {
     border: 1px solid #ffeaa7;
     margin: 0 auto;
     text-align: center;
+    max-width: 90%;
 }
 
 .message.command .message-content {
@@ -224,6 +261,16 @@ html, body {
 
 .message.user .message-meta {
     text-align: right;
+}
+
+.message-meta-badge {
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    display: inline-block;
 }
 
 /* 메시지 액션 버튼 */
@@ -317,12 +364,12 @@ html, body {
 }
 
 .input-info {
-    color: #6b7280; /* 더 어두운 색상 */
+    color: #6b7280 !important; /* 더 어두운 색상 */
     margin-top: 8px; /* 마진 증가 */
 }
 
 .input-info small {
-    color: #6b7280;
+    color: #6b7280 !important;
     font-weight: 500;
     font-size: 0.85rem; /* 폰트 크기 증가 */
 }
@@ -341,13 +388,13 @@ html, body {
     line-height: 1.5; /* 줄 간격 증가 */
     max-height: 120px;
     transition: border-color 0.2s ease;
-    color: #1f2937; /* 더 어두운 색상 */
+    color: #ffffff !important; /* 더 어두운 색상 */
     background: white;
     font-weight: 500; /* 폰트 두께 증가 */
 }
 
 #messageInput::placeholder {
-    color: #9ca3af; /* 더 진한 플레이스홀더 색상 */
+    color: #9ca3af !important; /* 더 진한 플레이스홀더 색상 */
     font-weight: 400;
 }
 
@@ -386,14 +433,14 @@ html, body {
 }
 
 .welcome-message h4 {
-    color: #1f2937; /* 더 어두운 색상 */
-    font-weight: 700; /* 더 두꺼운 폰트 */
+    color: #1f2937 !important; /* 더 어두운 색상 */
+    font-weight: 700 !important; /* 더 두꺼운 폰트 */
     font-size: 2.2rem; /* 폰트 크기 증가 */
     margin-bottom: 16px;
 }
 
 .welcome-message p {
-    color: #4b5563; /* 더 어두운 색상 */
+    color: #4b5563 !important; /* 더 어두운 색상 */
     font-size: 1.2rem; /* 폰트 크기 증가 */
     font-weight: 500;
     line-height: 1.6; /* 줄 간격 증가 */
@@ -560,274 +607,6 @@ html, body {
     }
 }
 
-/* Shell 선택기 스타일 */
-.shell-selector {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 8px 12px;
-    border: 1px solid #e9ecef;
-}
-
-.shell-selector .form-select {
-    min-width: 140px;
-}
-
-#toggleShellSelector {
-    width: 36px;
-    height: 36px;
-}
-
-/* 명령어 모드 스타일 */
-#messageInput.command-mode {
-    background: #1e1e1e;
-    color: #00ff00;
-    font-family: 'Courier New', monospace;
-    border: 2px solid #00ff00;
-}
-
-#messageInput.command-mode::placeholder {
-    color: #888;
-}
-
-/* OS 및 Shell 정보 표시 */
-.input-info {
-    font-size: 0.75rem;
-}
-
-.input-info span {
-    margin-right: 8px;
-}
-
-/* 메시지 메타데이터 */
-.message-meta .shell-type {
-    background: #007bff;
-    color: white;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-    margin-left: 4px;
-}
-
-.message.result .shell-type {
-    background: #28a745;
-}
-
-/* Windows 스타일 명령어 출력 */
-.message.result.windows {
-    background: #0c0c0c;
-    color: #cccccc;
-}
-
-.message.result.powershell {
-    background: #012456;
-    color: #ffffff;
-}
-
-/* 명령어 실행 버튼 강화 */
-.execute-command-btn {
-    position: relative;
-    overflow: hidden;
-}
-
-.execute-command-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    transition: left 0.5s;
-}
-
-.execute-command-btn:hover::before {
-    left: 100%;
-}
-
-/* 드롭다운 메뉴 개선 */
-.dropdown-menu {
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    border: none;
-}
-
-.dropdown-item {
-    padding: 8px 16px;
-    transition: background-color 0.2s ease;
-}
-
-.dropdown-item:hover {
-    background-color: #f8f9fa;
-}
-
-.dropdown-item i {
-    width: 16px;
-    text-align: center;
-}
-
-/* Shell 타입별 아이콘 */
-.shell-icon-powershell::before {
-    content: "PS";
-    background: #0078d4;
-    color: white;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-weight: bold;
-    margin-right: 4px;
-}
-
-.shell-icon-cmd::before {
-    content: "CMD";
-    background: #000000;
-    color: white;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-weight: bold;
-    margin-right: 4px;
-}
-
-.shell-icon-bash::before {
-    content: "BASH";
-    background: #4eaa25;
-    color: white;
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-size: 0.6rem;
-    font-weight: bold;
-    margin-right: 4px;
-}
-
-/* 반응형 Shell 선택기 */
-@media (max-width: 768px) {
-    .shell-selector {
-        flex-wrap: wrap;
-    }
-    
-    .shell-selector .form-select {
-        min-width: 120px;
-        margin-bottom: 4px;
-    }
-    
-    .shell-selector .d-flex {
-        flex-wrap: wrap;
-    }
-}
-
-/* 애니메이션 효과 */
-@keyframes shellTypeChange {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-}
-
-.shell-selector.changing {
-    animation: shellTypeChange 0.3s ease;
-}
-
-/* 명령어 모드 토글 애니메이션 */
-@keyframes commandModeToggle {
-    0% { border-color: #dee2e6; background: white; }
-    50% { border-color: #00ff00; background: #f0f8f0; }
-    100% { border-color: #00ff00; background: #1e1e1e; }
-}
-
-#messageInput.command-mode-entering {
-    animation: commandModeToggle 0.5s ease;
-}
-
-/* Windows 테마 */
-.windows-theme {
-    --primary-color: #0078d4;
-    --secondary-color: #005a9e;
-    --accent-color: #00bcf2;
-}
-
-.windows-theme .btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-}
-
-.windows-theme .btn-primary:hover {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
-}
-
-/* 성능 최적화 */
-.shell-selector, .input-group, .message {
-    will-change: transform;
-}
-
-/* 고대비 모드 지원 */
-@media (prefers-contrast: high) {
-    .shell-selector {
-        border: 2px solid #000;
-    }
-    
-    #messageInput.command-mode {
-        border: 3px solid #00ff00;
-    }
-}
-
-/* 스크롤바 스타일 */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
-}
-
-/* 애니메이션 */
-.fade-in {
-    animation: fadeIn 0.5s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.slide-in-right {
-    animation: slideInRight 0.3s ease;
-}
-
-@keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
-.slide-in-left {
-    animation: slideInLeft 0.3s ease;
-}
-
-@keyframes slideInLeft {
-    from {
-        transform: translateX(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
-
 /* 파일 업로드 스타일 */
 .file-upload-area {
     background: #f8f9fa;
@@ -934,29 +713,6 @@ html, body {
     position: relative;
 }
 
-#messageInput.with-file-button {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    border-left: none;
-}
-
-/* 업로드 진행 상태 */
-.upload-progress {
-    margin-top: 8px;
-}
-
-.upload-progress .progress {
-    height: 4px;
-    background: #e9ecef;
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.upload-progress .progress-bar {
-    background: #007bff;
-    transition: width 0.3s ease;
-}
-
 /* 파일 분석 메시지 스타일 */
 .message.file-upload .message-content {
     background: #e3f2fd;
@@ -973,54 +729,60 @@ html, body {
     font-size: 0.9rem;
 }
 
-.message.system .message-content {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeaa7;
-    margin: 0 auto;
-    text-align: center;
-    max-width: 90%;
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+    width: 8px;
 }
 
-.message-meta-badge {
-    margin-top: 8px;
-    padding: 4px 8px;
-    background: rgba(0, 123, 255, 0.1);
-    color: #007bff;
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
     border-radius: 4px;
-    font-size: 0.8rem;
-    display: inline-block;
 }
 
-/* 입력창/버튼 flex 침범 완전 방지 */
-#messageInput {
-    min-width: 0 !important;
-    max-width: 100% !important;
-    flex-grow: 1 !important;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
 
-#fileUploadToggle {
-    flex-shrink: 0 !important;
-    width: 44px !important;
-    height: 44px !important;
-    border-radius: 50% !important;
-    margin-right: 8px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    z-index: 1;
-    position: relative;
+/* 애니메이션 */
+.fade-in {
+    animation: fadeIn 0.5s ease;
 }
 
-#sendBtn {
-    flex-shrink: 0 !important;
-    width: 48px !important;
-    height: 48px !important;
-    border-radius: 50% !important;
-    margin-left: 8px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.slide-in-right {
+    animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.slide-in-left {
+    animation: slideInLeft 0.3s ease;
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
